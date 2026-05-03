@@ -74,9 +74,34 @@ describe("extract boundary", () => {
     });
   });
 
-  it("fails production config when API keys are empty", () => {
-    expect(() => loadConfig({ NODE_ENV: "production", API_KEYS: "" })).toThrow(
-      "API_KEYS must not be empty in production"
-    );
+  it("allows unauthenticated production mode when API keys are empty", async () => {
+    const app = buildApp({
+      config: loadConfig({ NODE_ENV: "production", API_KEYS: "" }),
+      logger: false,
+      services: {
+        urlPolicyLookup: () =>
+          Promise.resolve([{ address: "93.184.216.34", family: 4 }]),
+        fetchUrl: () =>
+          Promise.resolve({
+            finalUrl: "https://example.com/readme.txt",
+            contentType: "text/plain; charset=utf-8",
+            contentLength: 25,
+            body: Buffer.from("Plain text document body.")
+          })
+      }
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/extract",
+      payload: {
+        url: "https://example.com/readme.txt"
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      text: "Plain text document body."
+    });
   });
 });

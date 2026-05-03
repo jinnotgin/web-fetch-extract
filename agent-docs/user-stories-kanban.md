@@ -234,6 +234,26 @@ Checklist:
 - [x] Add `SECURITY.md`
 - [x] Add `SPEC.md`
 
+### Story K11: Operator Can Disable Service-Level API Key Auth
+
+As an operator, I want `API_KEYS` to be optional so I can run the service behind a trusted gateway, private network boundary, or platform IAM layer without requiring a second API key.
+
+Acceptance criteria:
+
+- empty or unset `API_KEYS` disables service-level authentication in every environment
+- configured `API_KEYS` still require `Authorization: Bearer <key>` or `x-api-key`
+- production boot does not fail when `API_KEYS` is empty
+- docs clearly warn that unauthenticated deployments must sit behind trusted access control
+- tests cover both configured-auth and disabled-auth behavior
+
+Checklist:
+
+- [x] Remove production fail-fast for empty `API_KEYS`
+- [x] Keep auth enforcement when keys are configured
+- [x] Add unauthenticated production-mode test
+- [x] Update README, SECURITY, SPEC, and env example
+- [x] Record the behavior change in agent docs
+
 ## In Progress
 
 No implementation story is in progress yet.

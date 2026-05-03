@@ -10,7 +10,7 @@ This contract is derived from `agent-bootstrap-docs/web-fetch-extract-service-sp
 
 ## Authentication
 
-Use `Authorization: Bearer <api-key>`. In development and test, `x-api-key` is also accepted. Production boot fails if `API_KEYS` is empty.
+If `API_KEYS` is empty, extraction requests are unauthenticated. If `API_KEYS` is set, use `Authorization: Bearer <api-key>` or `x-api-key`.
 
 ## Extraction Inputs
 
@@ -47,4 +47,4 @@ Chunks include character offsets and may include `pageStart` / `pageEnd` for PDF
 
 ## Safety Model
 
-The service enforces URL scheme, DNS/IP, domain, redirect, auth, timeout, page, OCR, browser, text, and chunk limits. It does not forward arbitrary caller headers.
+The service enforces URL scheme, DNS/IP, domain, redirect, timeout, page, OCR, browser, text, and chunk limits. API key auth is enforced only when `API_KEYS` is configured. It does not forward arbitrary caller headers.

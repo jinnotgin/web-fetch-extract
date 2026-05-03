@@ -16,13 +16,15 @@ This service fetches public URLs and extracts readable text. It is not a proxy, 
 
 ## Authentication
 
-Production requires `API_KEYS` to be non-empty at boot. Callers authenticate with:
+If `API_KEYS` is empty, `/v1/extract` does not require service-level authentication. This is intended for deployments behind a trusted gateway, private network boundary, or platform IAM layer. Do not expose an unauthenticated instance directly to the public internet.
+
+If `API_KEYS` is set, callers authenticate with:
 
 ```http
 Authorization: Bearer <api-key>
 ```
 
-Development also accepts:
+The service also accepts:
 
 ```http
 x-api-key: <api-key>

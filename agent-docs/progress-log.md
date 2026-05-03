@@ -58,6 +58,13 @@ Begin Story K1 from `agent-docs/user-stories-kanban.md`: scaffold the Node/TypeS
 - Added tests for auth, invalid request shape, blocked extract URLs, production API key requirements, URL scheme policy, private and metadata IP blocking, global/request domain controls, and redirect-to-private-IP rejection.
 - Verified `npm run typecheck`, `npm run lint`, `npm test`, and `npm run build`.
 
+### Optional Auth Update
+
+- Added Story K11 as an incremental behavior-change story after the original K2 security boundary.
+- Changed `API_KEYS` semantics so empty or unset `API_KEYS` disables service-level authentication in all environments, including production.
+- Retained `401 UNAUTHORIZED` behavior when one or more API keys are configured.
+- Updated README, SECURITY, SPEC, kanban, implementation plan, and tests to make the deployment tradeoff explicit.
+
 ### HTML and Plain Text Extraction Update
 
 - Completed Stories K3 and K4 using a red/green loop.

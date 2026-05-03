@@ -12,11 +12,13 @@ npm test
 npm run build
 ```
 
-Start locally:
+Start locally with authentication:
 
 ```bash
 API_KEYS=local-dev-key npm run dev
 ```
+
+If `API_KEYS` is empty or unset, `/v1/extract` does not require authentication. That can be useful behind a trusted gateway, but do not expose an unauthenticated instance directly to the public internet.
 
 Health:
 
@@ -41,7 +43,7 @@ Response content is bounded by `maxTextChars`, `chunkSizeChars`, `chunkOverlapCh
 
 ## Safety Model
 
-The service is not an open proxy. It enforces API key auth, URL scheme policy, DNS/IP blocking, redirect target checks, domain allow/block rules, request timeouts, PDF/OCR/browser limits, and controlled outbound headers.
+The service is not an open proxy. It can enforce API key auth, and always enforces URL scheme policy, DNS/IP blocking, redirect target checks, domain allow/block rules, request timeouts, PDF/OCR/browser limits, and controlled outbound headers.
 
 ## Docker
 
@@ -67,7 +69,7 @@ curl http://localhost:8080/v1/health
 
 ## Configuration
 
-Copy `.env.example` and set at least `API_KEYS` for production-like runs.
+Copy `.env.example` and set `API_KEYS` when the service should enforce its own API key auth. Leave `API_KEYS` empty only when another trusted layer handles access control.
 
 Key controls:
 

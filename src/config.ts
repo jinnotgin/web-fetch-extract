@@ -66,10 +66,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   const parsed = envSchema.parse(env);
   const apiKeys = parseCsv(parsed.API_KEYS);
 
-  if (parsed.NODE_ENV === "production" && apiKeys.length === 0) {
-    throw new Error("API_KEYS must not be empty in production");
-  }
-
   return {
     NODE_ENV: parsed.NODE_ENV,
     PORT: parsed.PORT,

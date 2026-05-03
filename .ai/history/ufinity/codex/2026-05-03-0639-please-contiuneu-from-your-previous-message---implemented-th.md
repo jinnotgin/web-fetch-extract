@@ -1,10 +1,10 @@
 # Conversation 019dec8f-eb27-7950-9d86-6b0bfc5dbe13
 
 - Source: `codex`
-- User: `ufinity`
-- System: `j-lin-1gjqq`
+- User: `jin`
+- System: `jin-macbook`
 - Started: `2026-05-03T06:39:08.079Z`
-- CWD: `/Users/ufinity/Documents/GitHub/web-fetch-extract`
+- CWD: `/Users/jin/Documents/GitHub/web-fetch-extract`
 
 ## User
 
@@ -28,7 +28,7 @@ Verification passed:
 - `npm test` with 25 tests
 - `npm run build`
 
-Current next slice in [agent-docs/user-stories-kanban.md](/Users/ufinity/Documents/GitHub/web-fetch-extract/agent-docs/user-stories-kanban.md) is K5: text-layer PDF extraction. Note: `.gitignore` still has the pre-existing `.DS_Store` modification.
+Current next slice in [agent-docs/user-stories-kanban.md](/Users/jin/Documents/GitHub/web-fetch-extract/agent-docs/user-stories-kanban.md) is K5: text-layer PDF extraction. Note: `.gitignore` still has the pre-existing `.DS_Store` modification.
 ==
 
 refer to all agent docs and agent service specs
@@ -101,13 +101,13 @@ Implemented K5 from the bootstrap spec: text-layer PDF extraction.
 
 Changes made:
 - Added `pdfjs-dist` dependency.
-- Added [pdfExtractor.ts](/Users/ufinity/Documents/GitHub/web-fetch-extract/src/services/pdfExtractor.ts) using PDF.js.
+- Added [pdfExtractor.ts](/Users/jin/Documents/GitHub/web-fetch-extract/src/services/pdfExtractor.ts) using PDF.js.
 - Added `application/pdf` MIME detection and `/v1/extract` PDF dispatch.
 - Added `MAX_PDF_PAGES` config default.
 - Extended chunking so PDF chunks can include `pageStart` / `pageEnd`.
-- Added [sample.pdf](/Users/ufinity/Documents/GitHub/web-fetch-extract/test/fixtures/sample.pdf) fixture.
+- Added [sample.pdf](/Users/jin/Documents/GitHub/web-fetch-extract/test/fixtures/sample.pdf) fixture.
 - Added API and chunking tests for PDF extraction.
-- Updated [user-stories-kanban.md](/Users/ufinity/Documents/GitHub/web-fetch-extract/agent-docs/user-stories-kanban.md) and [progress-log.md](/Users/ufinity/Documents/GitHub/web-fetch-extract/agent-docs/progress-log.md).
+- Updated [user-stories-kanban.md](/Users/jin/Documents/GitHub/web-fetch-extract/agent-docs/user-stories-kanban.md) and [progress-log.md](/Users/jin/Documents/GitHub/web-fetch-extract/agent-docs/progress-log.md).
 
 Verification passed:
 - `npm run typecheck`
@@ -191,17 +191,17 @@ Done. I downloaded web-sourced fixtures and added tests against them.
 
 Added fixtures:
 - PDFs:
-  - [w3c-dummy.pdf](/Users/ufinity/Documents/GitHub/web-fetch-extract/test/fixtures/web-pdf/w3c-dummy.pdf) from [W3C dummy.pdf](https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf)
-  - [orimi-pdf-test.pdf](/Users/ufinity/Documents/GitHub/web-fetch-extract/test/fixtures/web-pdf/orimi-pdf-test.pdf) from [Orimi PDF test](https://orimi.com/pdf-test.pdf)
+  - [w3c-dummy.pdf](/Users/jin/Documents/GitHub/web-fetch-extract/test/fixtures/web-pdf/w3c-dummy.pdf) from [W3C dummy.pdf](https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf)
+  - [orimi-pdf-test.pdf](/Users/jin/Documents/GitHub/web-fetch-extract/test/fixtures/web-pdf/orimi-pdf-test.pdf) from [Orimi PDF test](https://orimi.com/pdf-test.pdf)
 - HTML:
-  - [w3c-wcag21.html](/Users/ufinity/Documents/GitHub/web-fetch-extract/test/fixtures/web-html/w3c-wcag21.html) from [W3C WCAG 2.1](https://www.w3.org/TR/WCAG21/)
-  - [w3c-berners-lee.html](/Users/ufinity/Documents/GitHub/web-fetch-extract/test/fixtures/web-html/w3c-berners-lee.html) from [Tim Berners-Lee W3C profile](https://www.w3.org/People/Berners-Lee/)
+  - [w3c-wcag21.html](/Users/jin/Documents/GitHub/web-fetch-extract/test/fixtures/web-html/w3c-wcag21.html) from [W3C WCAG 2.1](https://www.w3.org/TR/WCAG21/)
+  - [w3c-berners-lee.html](/Users/jin/Documents/GitHub/web-fetch-extract/test/fixtures/web-html/w3c-berners-lee.html) from [Tim Berners-Lee W3C profile](https://www.w3.org/People/Berners-Lee/)
 
 Updated tests now run these downloaded files through `/v1/extract` offline, so `npm test` does not hit the network.
 
 Also added provenance docs:
-- [pdf-sample-sources.md](/Users/ufinity/Documents/GitHub/web-fetch-extract/agent-docs/pdf-sample-sources.md)
-- [html-sample-sources.md](/Users/ufinity/Documents/GitHub/web-fetch-extract/agent-docs/html-sample-sources.md)
+- [pdf-sample-sources.md](/Users/jin/Documents/GitHub/web-fetch-extract/agent-docs/pdf-sample-sources.md)
+- [html-sample-sources.md](/Users/jin/Documents/GitHub/web-fetch-extract/agent-docs/html-sample-sources.md)
 
 Verification passed:
 - `npm run typecheck`
@@ -447,12 +447,12 @@ Behavior now:
 - Docs warn to use empty `API_KEYS` only behind trusted access control.
 
 Updated:
-- [src/config.ts](/Users/ufinity/Documents/GitHub/web-fetch-extract/src/config.ts)
-- [test/extractBoundary.test.ts](/Users/ufinity/Documents/GitHub/web-fetch-extract/test/extractBoundary.test.ts)
-- [README.md](/Users/ufinity/Documents/GitHub/web-fetch-extract/README.md)
-- [SECURITY.md](/Users/ufinity/Documents/GitHub/web-fetch-extract/SECURITY.md)
-- [SPEC.md](/Users/ufinity/Documents/GitHub/web-fetch-extract/SPEC.md)
-- [agent-docs/user-stories-kanban.md](/Users/ufinity/Documents/GitHub/web-fetch-extract/agent-docs/user-stories-kanban.md)
+- [src/config.ts](/Users/jin/Documents/GitHub/web-fetch-extract/src/config.ts)
+- [test/extractBoundary.test.ts](/Users/jin/Documents/GitHub/web-fetch-extract/test/extractBoundary.test.ts)
+- [README.md](/Users/jin/Documents/GitHub/web-fetch-extract/README.md)
+- [SECURITY.md](/Users/jin/Documents/GitHub/web-fetch-extract/SECURITY.md)
+- [SPEC.md](/Users/jin/Documents/GitHub/web-fetch-extract/SPEC.md)
+- [agent-docs/user-stories-kanban.md](/Users/jin/Documents/GitHub/web-fetch-extract/agent-docs/user-stories-kanban.md)
 
 Verification passed:
 - `npm run typecheck`

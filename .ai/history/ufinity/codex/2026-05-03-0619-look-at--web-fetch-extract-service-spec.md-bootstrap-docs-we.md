@@ -1,10 +1,10 @@
 # Conversation 019dec7e-36dd-7100-9db5-e25cdb0b26c3
 
 - Source: `codex`
-- User: `ufinity`
-- System: `j-lin-1gjqq`
+- User: `jin`
+- System: `jin-macbook`
 - Started: `2026-05-03T06:19:47.808Z`
-- CWD: `/Users/ufinity/Documents/GitHub/web-fetch-extract`
+- CWD: `/Users/jin/Documents/GitHub/web-fetch-extract`
 
 ## User
 
@@ -58,9 +58,9 @@ _`2026-05-03T06:22:39.977Z`_
 
 Created the planning artifacts from the bootstrap spec:
 
-- [implementation-plan.md](/Users/ufinity/Documents/GitHub/web-fetch-extract/docs/implementation-plan.md)
-- [user-stories-kanban.md](/Users/ufinity/Documents/GitHub/web-fetch-extract/docs/user-stories-kanban.md)
-- [progress-log.md](/Users/ufinity/Documents/GitHub/web-fetch-extract/docs/progress-log.md)
+- [implementation-plan.md](/Users/jin/Documents/GitHub/web-fetch-extract/docs/implementation-plan.md)
+- [user-stories-kanban.md](/Users/jin/Documents/GitHub/web-fetch-extract/docs/user-stories-kanban.md)
+- [progress-log.md](/Users/jin/Documents/GitHub/web-fetch-extract/docs/progress-log.md)
 
 The kanban is organized as vertical user-value slices, starting with bootable health/readiness, then auth/SSRF safety, then HTML/plain text extraction, PDF, OCR, browser fallback, Docker/CI, and docs/API integration.
 
@@ -247,4 +247,4 @@ Verification passed:
 - `npm test` with 25 tests
 - `npm run build`
 
-Current next slice in [agent-docs/user-stories-kanban.md](/Users/ufinity/Documents/GitHub/web-fetch-extract/agent-docs/user-stories-kanban.md) is K5: text-layer PDF extraction. Note: `.gitignore` still has the pre-existing `.DS_Store` modification.
+Current next slice in [agent-docs/user-stories-kanban.md](/Users/jin/Documents/GitHub/web-fetch-extract/agent-docs/user-stories-kanban.md) is K5: text-layer PDF extraction. Note: `.gitignore` still has the pre-existing `.DS_Store` modification.

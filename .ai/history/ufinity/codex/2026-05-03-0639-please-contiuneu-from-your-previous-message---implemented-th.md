@@ -367,3 +367,135 @@ Docker smoke note: the container started and `/v1/health` returned the expected 
 References checked for K9:
 - [GitHub hosted runner labels](https://docs.github.com/en/actions/reference/github-hosted-runners-reference)
 - [Docker GitHub Actions docs](https://docs.docker.com/build/ci/github-actions/)
+
+## User
+
+_`2026-05-03T07:28:03.700Z`_
+
+are API_KEYS mandatory?
+
+## Agent
+
+_`2026-05-03T07:28:10.283Z`_
+
+`API_KEYS` are mandatory in `NODE_ENV=production`.
+
+Current behavior:
+- `NODE_ENV=production` + empty `API_KEYS` fails boot.
+- `NODE_ENV=development` or `test` + empty `API_KEYS` disables auth.
+- If `API_KEYS` is set, callers must authenticate with:
+  - `Authorization: Bearer <key>`
+  - or development-friendly `x-api-key: <key>`
+
+So for local quick runs you can omit it, but for Docker/production-style runs you need something like:
+
+```bash
+API_KEYS=local-dev-key npm start
+```
+
+## User
+
+_`2026-05-03T07:28:54.919Z`_
+
+can we have an optional behaviour? like if no api_keys defined, then no need auth? think about it
+
+## Agent
+
+_`2026-05-03T07:29:10.104Z`_
+
+I’ll review the current auth/config paths and tests, then I’ll adjust production boot so empty `API_KEYS` deliberately means unauthenticated mode. I’ll also update docs because this changes the security posture and should be explicit, not accidental.
+
+## Agent
+
+_`2026-05-03T07:29:14.147Z`_
+
+The auth code already skips auth when `apiKeys` is empty; the only hard blocker is the production config fail-fast plus docs/tests describing the old requirement. I’m removing that fail-fast and adding explicit coverage for unauthenticated production mode.
+
+## User
+
+_`2026-05-03T07:30:19.628Z`_
+
+add as incremental user story if you gonna write code
+
+## Agent
+
+_`2026-05-03T07:30:24.506Z`_
+
+You’re right. Since this changes behavior, I’m adding it as a new incremental story instead of silently rewriting K2 history. I’ll keep the previous notes as historical context and add K11 for optional auth.
+
+## Agent
+
+_`2026-05-03T07:30:39.753Z`_
+
+K11 is now in the kanban as the incremental behavior change. I’m running the project checks so the auth semantics change is verified end to end.
+
+## Agent
+
+_`2026-05-03T07:31:03.179Z`_
+
+I noticed I had also edited the old K2 text while adding K11. I’m correcting that so K2 remains the original historical story and K11 carries the new behavior change.
+
+## Agent
+
+_`2026-05-03T07:31:32.557Z`_
+
+Done. I added it as incremental Story K11 and kept K2 as the original historical story.
+
+Behavior now:
+- Empty/unset `API_KEYS` means no service-level auth required, including production.
+- If `API_KEYS` has values, auth is still required.
+- Docs warn to use empty `API_KEYS` only behind trusted access control.
+
+Updated:
+- [src/config.ts](/Users/ufinity/Documents/GitHub/web-fetch-extract/src/config.ts)
+- [test/extractBoundary.test.ts](/Users/ufinity/Documents/GitHub/web-fetch-extract/test/extractBoundary.test.ts)
+- [README.md](/Users/ufinity/Documents/GitHub/web-fetch-extract/README.md)
+- [SECURITY.md](/Users/ufinity/Documents/GitHub/web-fetch-extract/SECURITY.md)
+- [SPEC.md](/Users/ufinity/Documents/GitHub/web-fetch-extract/SPEC.md)
+- [agent-docs/user-stories-kanban.md](/Users/ufinity/Documents/GitHub/web-fetch-extract/agent-docs/user-stories-kanban.md)
+
+Verification passed:
+- `npm run typecheck`
+- `npm run lint`
+- `npm test` with 37 tests
+- `npm run build`
+
+## User
+
+_`2026-05-03T07:31:59.228Z`_
+
+whats th epoint of chiunking?
+
+## Agent
+
+_`2026-05-03T07:32:08.851Z`_
+
+Chunking turns one large extracted document into smaller, bounded pieces.
+
+The point is mainly for AI/tool usage:
+
+- **Model context limits:** long pages/PDFs may be too large to send as one blob.
+- **Retrieval:** callers can rank/select only the relevant chunks instead of passing the whole document.
+- **Citations:** chunks carry `charStart`, `charEnd`, and for PDFs `pageStart` / `pageEnd`, so downstream answers can cite where text came from.
+- **Cost control:** `maxChunks`, `chunkSizeChars`, and `maxTextChars` cap how much content leaves the service.
+- **Failure containment:** if extraction returns a huge messy page, chunking keeps the response structured and bounded.
+
+Example: a 100-page PDF might extract into 80 chunks. An AI orchestrator can inspect chunk metadata, choose the 3 relevant chunks, and pass only those to the model.
+
+## User
+
+_`2026-05-03T07:32:31.997Z`_
+
+help me relase v0.1
+
+## Agent
+
+_`2026-05-03T07:32:42.352Z`_
+
+I’ll check the current git state and release workflow setup first, then I’ll prepare a clean `v0.1.0` release path: verify, stage, commit, tag, and push if the repository/remote is ready.
+
+## Agent
+
+_`2026-05-03T07:32:52.641Z`_
+
+The working tree is clean on `main`, package version is already `0.1.0`, and no `v0.1*` tags exist locally. I’m going to run the release verification set before tagging.

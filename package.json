@@ -1,0 +1,44 @@
+{
+  "name": "web-fetch-extract",
+  "version": "0.1.0",
+  "description": "Provider-neutral service for fetching public URLs and extracting readable text.",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "start": "node dist/server.js",
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "docker:build": "docker build -t web-fetch-extract:local ."
+  },
+  "dependencies": {
+    "@mozilla/readability": "^0.6.0",
+    "cheerio": "^1.2.0",
+    "dotenv": "latest",
+    "fastify": "latest",
+    "jsdom": "^29.1.1",
+    "pdfjs-dist": "^5.7.284",
+    "pino": "latest",
+    "pino-pretty": "latest",
+    "undici": "^8.2.0",
+    "zod": "latest"
+  },
+  "devDependencies": {
+    "@eslint/js": "latest",
+    "@types/jsdom": "^28.0.1",
+    "@types/node": "latest",
+    "@typescript-eslint/eslint-plugin": "latest",
+    "@typescript-eslint/parser": "latest",
+    "eslint": "latest",
+    "tsx": "latest",
+    "typescript": "latest",
+    "typescript-eslint": "latest",
+    "vitest": "latest"
+  }
+}

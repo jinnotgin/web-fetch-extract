@@ -2815,6 +2815,504 @@
       "role": "assistant",
       "text": "Implemented the remaining kanban stories K6-K10.\n\nCompleted:\n- K6 OCR fallback:\n  - Added `tesseract.js`, `@napi-rs/canvas`, `ocrExtractor`, image OCR branch, scanned-PDF OCR fallback, OCR config, and tests.\n- K7 browser fallback:\n  - Added Puppeteer-backed `browserExtractor`, browser config, concurrency limiter, resource blocking, navigation URL policy guard, and tests.\n- K8 Docker:\n  - Added multi-stage `Dockerfile`, `.dockerignore`, non-root runtime, Chromium runtime deps, and Docker docs.\n  - Fixed start path to `dist/src/server.js`.\n- K9 CI/releases:\n  - Added CI, native AMD64/ARM64 Docker image workflow, GHCR manifest publication, and tag release workflow.\n- K10 integrator docs:\n  - Added `.env.example`, `README.md`, `SECURITY.md`, `SPEC.md`, and `openapi.yaml`.\n\nVerification passed:\n- `npm run typecheck`\n- `npm run lint`\n- `npm test` with 37 tests\n- `npm run build`\n- YAML parse check for `openapi.yaml` and all workflows\n- `docker build -t web-fetch-extract:local .`\n\nDocker smoke note: the container started and `/v1/health` returned the expected JSON from inside the container. Host `localhost:18080` did not connect in this local Colima/Docker setup despite the published port mapping.\n\nReferences checked for K9:\n- [GitHub hosted runner labels](https://docs.github.com/en/actions/reference/github-hosted-runners-reference)\n- [Docker GitHub Actions docs](https://docs.docker.com/build/ci/github-actions/)",
       "timestamp": "2026-05-03T07:22:38.743Z"
+    },
+    {
+      "kind": "system",
+      "role": "system",
+      "text": "<permissions instructions>\nFilesystem sandboxing defines which files can be read or written. `sandbox_mode` is `workspace-write`: The sandbox permits reading files, and editing files in `cwd` and `writable_roots`. Editing files in other directories requires approval. Network access is restricted.\n# Escalation Requests\n\nCommands are run outside the sandbox if they are approved by the user, or match an existing rule that allows it to run unrestricted. The command string is split into independent command segments at shell control operators, including but not limited to:\n\n- Pipes: |\n- Logical operators: &&, ||\n- Command separators: ;\n- Subshell boundaries: (...), $(...)\n\nEach resulting segment is evaluated independently for sandbox restrictions and approval requirements.\n\nExample:\n\ngit pull | tee output.txt\n\nThis is treated as two command segments:\n\n[\"git\", \"pull\"]\n\n[\"tee\", \"output.txt\"]\n\nCommands that use more advanced shell features like redirection (>, >>, <), substitutions ($(...), ...), environment variables (FOO=bar), or wildcard patterns (*, ?) will not be evaluated against rules, to limit the scope of what an approved rule allows.\n\n## How to request escalation\n\nIMPORTANT: To request approval to execute a command that will require escalated privileges:\n\n- Provide the `sandbox_permissions` parameter with the value `\"require_escalated\"`\n- Include a short question asking the user if they want to allow the action in `justification` parameter. e.g. \"Do you want to download and install dependencies for this project?\"\n- Optionally suggest a `prefix_rule` - this will be shown to the user with an option to persist the rule approval for future sessions.\n\nIf you run a command that is important to solving the user's query, but it fails because of sandboxing or with a likely sandbox-related network error (for example DNS/host resolution, registry/index access, or dependency download failure), rerun the command with \"require_escalated\". ALWAYS proceed to use the `justification` parameter - do not message the user before requesting approval for the command.\n\n## When to request escalation\n\nWhile commands are running inside the sandbox, here are some scenarios that will require escalation outside the sandbox:\n\n- You need to run a command that writes to a directory that requires it (e.g. running tests that write to /var)\n- You need to run a GUI app (e.g., open/xdg-open/osascript) to open browsers or files.\n- If you run a command that is important to solving the user's query, but it fails because of sandboxing or with a likely sandbox-related network error (for example DNS/host resolution, registry/index access, or dependency download failure), rerun the command with `require_escalated`. ALWAYS proceed to use the `sandbox_permissions` and `justification` parameters. do not message the user before requesting approval for the command.\n- You are about to take a potentially destructive action such as an `rm` or `git reset` that the user did not explicitly ask for.\n- Be judicious with escalating, but if completing the user's request requires it, you should do so - don't try and circumvent approvals by using other tools.\n\n## prefix_rule guidance\n\nWhen choosing a `prefix_rule`, request one that will allow you to fulfill similar requests from the user in the future without re-requesting escalation. It should be categorical and reasonably scoped to similar capabilities. You should rarely pass the entire command into `prefix_rule`.\n\n### Banned prefix_rules \nAvoid requesting overly broad prefixes that the user would be ill-advised to approve. For example, do not request [\"python3\"], [\"python\", \"-\"], or other similar prefixes that would allow arbitrary scripting.\nNEVER provide a prefix_rule argument for destructive commands like rm.\nNEVER provide a prefix_rule if your command uses a heredoc or herestring. \n\n### Examples\nGood examples of prefixes:\n- [\"npm\", \"run\", \"dev\"]\n- [\"gh\", \"pr\", \"check\"]\n- [\"cargo\", \"test\"]\n\n\n## Approved command prefixes\nThe following prefix rules have already been approved: - [\"git\", \"add\"]\n- [\"go\", \"test\"]\n- [\"npm\", \"install\"]\n- [\"/bin/zsh\", \"-lc\", \"GOCACHE=/tmp/go-build go test ./...\"]\n- [\"/bin/zsh\", \"-lc\", \"GOCACHE=/tmp/go-build go test ./... -coverprofile=coverage.out && go tool cover -func=coverage.out | tail -n 1\"]\n The writable roots are `/Users/ufinity/Documents/GitHub/web-fetch-extract`, `/private/tmp`, `/private/var/folders/l7/4dxvjsw538dg7km531tdj9sm0000gn/T`.\n</permissions instructions>",
+      "timestamp": "2026-05-03T07:28:03.690Z"
+    },
+    {
+      "kind": "user",
+      "role": "user",
+      "text": "are API_KEYS mandatory?",
+      "timestamp": "2026-05-03T07:28:03.700Z"
+    },
+    {
+      "kind": "assistant",
+      "role": "assistant",
+      "text": "`API_KEYS` are mandatory in `NODE_ENV=production`.\n\nCurrent behavior:\n- `NODE_ENV=production` + empty `API_KEYS` fails boot.\n- `NODE_ENV=development` or `test` + empty `API_KEYS` disables auth.\n- If `API_KEYS` is set, callers must authenticate with:\n  - `Authorization: Bearer <key>`\n  - or development-friendly `x-api-key: <key>`\n\nSo for local quick runs you can omit it, but for Docker/production-style runs you need something like:\n\n```bash\nAPI_KEYS=local-dev-key npm start\n```",
+      "timestamp": "2026-05-03T07:28:10.283Z"
+    },
+    {
+      "kind": "user",
+      "role": "user",
+      "text": "can we have an optional behaviour? like if no api_keys defined, then no need auth? think about it",
+      "timestamp": "2026-05-03T07:28:54.919Z"
+    },
+    {
+      "kind": "assistant",
+      "role": "assistant",
+      "text": "I’ll review the current auth/config paths and tests, then I’ll adjust production boot so empty `API_KEYS` deliberately means unauthenticated mode. I’ll also update docs because this changes the security posture and should be explicit, not accidental.",
+      "timestamp": "2026-05-03T07:29:10.104Z"
+    },
+    {
+      "kind": "tool",
+      "role": "tool",
+      "text": "[tool_call] exec_command\n{\"cmd\":\"sed -n '1,220p' src/config.ts\",\"workdir\":\"/Users/ufinity/Documents/GitHub/web-fetch-extract\",\"yield_time_ms\":1000,\"max_output_tokens\":12000}",
+      "timestamp": "2026-05-03T07:29:10.104Z"
+    },
+    {
+      "kind": "tool",
+      "role": "tool",
+      "text": "[tool_call] exec_command\n{\"cmd\":\"sed -n '1,220p' src/services/auth.ts\",\"workdir\":\"/Users/ufinity/Documents/GitHub/web-fetch-extract\",\"yield_time_ms\":1000,\"max_output_tokens\":12000}",
+      "timestamp": "2026-05-03T07:29:10.110Z"
+    },
+    {
+      "kind": "tool",
+      "role": "tool",
+      "text": "[tool_call] exec_command\n{\"cmd\":\"rg -n \\\"API_KEYS|UNAUTHORIZED|production|auth|api key\\\" test src README.md SECURITY.md SPEC.md .env.example agent-docs agent-bootstrap-docs\",\"workdir\":\"/Users/ufinity/Documents/GitHub/web-fetch-extract\",\"yield_time_ms\":1000,\"max_output_tokens\":20000}",
+      "timestamp": "2026-05-03T07:29:10.157Z"
+    },
+    {
+      "kind": "tool",
+      "role": "tool",
+      "text": "[tool_result] call_id=call_dFl7zjw47VCCywRI7S4ffJju\nChunk ID: f60726\nWall time: 0.0000 seconds\nProcess exited with code 0\nOriginal token count: 771\nOutput:\nimport \"dotenv/config\";\n\nimport { z } from \"zod\";\n\nexport const SERVICE_NAME = \"web-fetch-extract\";\nexport const SERVICE_VERSION = \"0.1.0\";\n\nfunction booleanEnv(defaultValue: boolean) {\n  return z\n  .preprocess((value) => {\n    if (value === undefined) {\n      return undefined;\n    }\n\n    if (typeof value === \"boolean\") {\n      return value ? \"true\" : \"false\";\n    }\n\n    if (typeof value === \"string\") {\n      return value.toLowerCase();\n    }\n\n    return value;\n  }, z.enum([\"true\", \"false\"]))\n  .transform((value) => value === \"true\")\n    .default(defaultValue);\n}\n\nconst envSchema = z.object({\n  NODE_ENV: z\n    .enum([\"development\", \"test\", \"production\"])\n    .default(\"development\"),\n  PORT: z.coerce.number().int().positive().default(8080),\n  LOG_LEVEL: z\n    .enum([\"fatal\", \"error\", \"warn\", \"info\", \"debug\", \"trace\", \"silent\"])\n    .default(\"info\"),\n  API_KEYS: z.string().default(\"\"),\n  ALLOW_HTTP: booleanEnv(false),\n  ALLOW_PRIVATE_IPS: booleanEnv(false),\n  MAX_REDIRECTS: z.coerce.number().int().min(0).default(5),\n  REQUEST_TIMEOUT_MS: z.coerce.number().int().positive().default(15000),\n  BROWSER_TIMEOUT_MS: z.coerce.number().int().positive().default(25000),\n  MAX_PDF_PAGES: z.coerce.number().int().positive().default(30),\n  MAX_OCR_PAGES: z.coerce.number().int().positive().default(5),\n  ENABLE_OCR: booleanEnv(true),\n  ENABLE_BROWSER_FALLBACK: booleanEnv(true),\n  MAX_BROWSER_CONCURRENCY: z.coerce.number().int().positive().default(2),\n  ALLOWED_DOMAINS: z.string().default(\"\"),\n  BLOCKED_DOMAINS: z.string().default(\"localhost,127.0.0.1,169.254.169.254\")\n});\n\ntype ParsedEnv = z.infer<typeof envSchema>;\n\nexport type AppConfig = Omit<\n  ParsedEnv,\n  \"API_KEYS\" | \"ALLOWED_DOMAINS\" | \"BLOCKED_DOMAINS\"\n> & {\n  serviceName: typeof SERVICE_NAME;\n  version: typeof SERVICE_VERSION;\n  apiKeys: string[];\n  allowedDomains: string[];\n  blockedDomains: string[];\n};\n\nexport function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {\n  const parsed = envSchema.parse(env);\n  const apiKeys = parseCsv(parsed.API_KEYS);\n\n  if (parsed.NODE_ENV === \"production\" && apiKeys.length === 0) {\n    throw new Error(\"API_KEYS must not be empty in production\");\n  }\n\n  return {\n    NODE_ENV: parsed.NODE_ENV,\n    PORT: parsed.PORT,\n    LOG_LEVEL: parsed.LOG_LEVEL,\n    ALLOW_HTTP: parsed.ALLOW_HTTP,\n    ALLOW_PRIVATE_IPS: parsed.ALLOW_PRIVATE_IPS,\n    MAX_REDIRECTS: parsed.MAX_REDIRECTS,\n    REQUEST_TIMEOUT_MS: parsed.REQUEST_TIMEOUT_MS,\n    BROWSER_TIMEOUT_MS: parsed.BROWSER_TIMEOUT_MS,\n    MAX_PDF_PAGES: parsed.MAX_PDF_PAGES,\n    MAX_OCR_PAGES: parsed.MAX_OCR_PAGES,\n    ENABLE_OCR: parsed.ENABLE_OCR,\n    ENABLE_BROWSER_FALLBACK: parsed.ENABLE_BROWSER_FALLBACK,\n    MAX_BROWSER_CONCURRENCY: parsed.MAX_BROWSER_CONCURRENCY,\n    serviceName: SERVICE_NAME,\n    version: SERVICE_VERSION,\n    apiKeys,\n    allowedDomains: parseCsv(parsed.ALLOWED_DOMAINS),\n    blockedDomains: parseCsv(parsed.BLOCKED_DOMAINS)\n  };\n}\n\nfunction parseCsv(value: string): string[] {\n  return value\n    .split(\",\")\n    .map((item) => item.trim())\n    .filter((item) => item.length > 0);\n}\n",
+      "timestamp": "2026-05-03T07:29:10.199Z"
+    },
+    {
+      "kind": "tool",
+      "role": "tool",
+      "text": "[tool_result] call_id=call_e3QEDIIlUhQGiN1VMn06xeO5\nChunk ID: 5c2471\nWall time: 0.0000 seconds\nProcess exited with code 0\nOriginal token count: 252\nOutput:\nimport type { FastifyRequest } from \"fastify\";\n\nimport type { AppConfig } from \"../config.js\";\nimport { AppError } from \"../errors.js\";\n\nexport function authenticateApiKey(\n  request: FastifyRequest,\n  config: Pick<AppConfig, \"apiKeys\">\n) {\n  if (config.apiKeys.length === 0) {\n    return;\n  }\n\n  const providedKey = readBearerToken(request) ?? readDevelopmentApiKey(request);\n\n  if (providedKey === undefined || !config.apiKeys.includes(providedKey)) {\n    throw new AppError(401, \"UNAUTHORIZED\", \"Missing or invalid API key.\");\n  }\n}\n\nfunction readBearerToken(request: FastifyRequest): string | undefined {\n  const header = request.headers.authorization;\n\n  if (typeof header !== \"string\") {\n    return undefined;\n  }\n\n  const match = /^Bearer\\s+(.+)$/i.exec(header);\n  return match?.[1]?.trim();\n}\n\nfunction readDevelopmentApiKey(request: FastifyRequest): string | undefined {\n  const header = request.headers[\"x-api-key\"];\n\n  if (Array.isArray(header)) {\n    return header[0];\n  }\n\n  return header;\n}\n",
+      "timestamp": "2026-05-03T07:29:10.199Z"
+    },
+    {
+      "kind": "tool",
+      "role": "tool",
+      "text": "[tool_result] call_id=call_O0jaOhwQc7l660VVIYmxEMcU\nChunk ID: 66edf5\nWall time: 0.0000 seconds\nProcess exited with code 0\nOriginal token count: 14243\nOutput:\nTotal output lines: 150\n\nSECURITY.md:19:Production requires `API_KEYS` to be non-empty at boot. Callers authenticate with:\nSECURITY.md:33:Do not send secrets, cookies, private URLs, or authorization-bearing URLs to this service. Extracted content is returned to the caller and is not intentionally persisted by the service.\n.env.example:1:NODE_ENV=production\n.env.example:6:API_KEYS=change-me-local-dev-key\nREADME.md:18:API_KEYS=local-dev-key npm run dev\nREADME.md:44:The service is not an open proxy. It enforces API key auth, URL scheme policy, DNS/IP blocking, redirect target checks, domain allow/block rules, request timeouts, PDF/OCR/browser limits, and controlled outbound headers.\nREADME.md:58:  -e API_KEYS=local-dev-key \\\nREADME.md:70:Copy `.env.example` and set at least `API_KEYS` for production-like runs.\nSPEC.md:13:Use `Authorization: Bearer <api-key>`. In development and test, `x-api-key` is also accepted. Production boot fails if `API_KEYS` is empty.\nSPEC.md:50:The service enforces URL scheme, DNS/IP, domain, redirect, auth, timeout, page, OCR, browser, text, and chunk limits. It does not forward arbitrary caller headers.\nsrc/services/auth.ts:6:export function authenticateApiKey(\nsrc/services/auth.ts:17:    throw new AppError(401, \"UNAUTHORIZED\", \"Missing or invalid API key.\");\nsrc/services/auth.ts:22:  const header = request.headers.authorization;\nagent-docs/user-stories-kanban.md:52:### Story K2: Unsafe or Unauthenticated Requests Are Rejected\nagent-docs/user-stories-kanban.md:54:As a platform owner, I want authentication and strict URL policy before extraction exists so the service cannot be used as an open proxy or SSRF primitive.\nagent-docs/user-stories-kanban.md:58:- production config fails fast when `API_KEYS` is empty\nagent-docs/user-stories-kanban.md:59:- bearer auth is supported\nagent-docs/user-stories-kanban.md:60:- development `x-api-key` auth is supported\nagent-docs/user-stories-kanban.md:70:- [x] Add auth hook\nagent-docs/user-stories-kanban.md:180:As an operator, I want a production-style container image that runs as non-root and includes required browser dependencies so the service can deploy to Cloud Run or another OCI runtime.\nagent-docs/user-stories-kanban.md:185:- production image omits dev dependencies\nagent-docs/user-stories-kanban.md:225:- `SECURITY.md` documents non-goals, SSRF controls, auth expectations, and disclosure path\nagent-bootstrap-docs/web-fetch-extract-service-spec.md:35:- bypass paywalls, authentication, bot protections, or access controls\nagent-bootstrap-docs/web-fetch-extract-service-spec.md:203:NODE_ENV=production\nagent-bootstrap-docs/web-fetch-extract-service-spec.md:208:API_KEYS=change-me-local-dev-key\nagent-bootstrap-docs/web-fetch-extract-service-spec.md:301:- authorization headers\nagent-bootstrap-docs/web-fetch-extract-service-spec.md:367:  +-- authenticate\nagent-bootstrap-docs/web-fetch-extract-service-spec.md:513:Alternative development-only authentication:\nagent-bootstrap-docs/web-fetch-extract-service-spec.md:519:If `API_KEYS` is empty in local development, authentication may be disabled. In production, the server must fail boot if `API_KEYS` is empty.\nagent-bootstrap-docs/web-fetch-extract-service-spec.md:681:| `401` | `UNAUTHORIZED` | Missing or invalid API key. |\nagent-bootstrap-docs/web-fetch-extract-service-spec.md:779:          description: Unauthorized\nagent-bootstrap-docs/web-fetch-extract-service-spec.md:1128:- missing auth returns 401 in production-like config\nagent-bootstrap-docs/web-fetch-extract-service-spec.md:1176:- set `NODE_ENV=production`\nagent-bootstrap-docs/web-fetch-extract-service-spec.md:1194:ENV NODE_ENV=production\nagent-bootstrap-docs/web-fetch-extract-service-spec.md:1553:  -e API_KEYS=change-me-local-dev-key \\\nagent-bootstrap-docs/web-fetch-extract-service-spec.md:1591:4. Add API key authentication.\nagent-bootstrap-docs/web-fetch-extract-service-spec.md:1691:  --allow-unauthenticated=false \\\nagent-bootstrap-docs/web-fetch-extract-service-spec.md:1692:  --set-env-vars NODE_ENV=production,LOG_LEVEL=info,ENABLE_BROWSER_FALLBACK=true,ENABLE_OCR=true \\\nagent-bootstrap-docs/web-fetch-extract-service-spec.md:1693:  --set-secrets API_KEYS=web-fetch-api-keys:latest \\\nagent-bootstrap-docs/web-fetch-extract-service-spec.md:1739:docker run --rm -p 8080:8080 -e API_KEYS=dev-key web-fetch-extract:local\nagent-docs/implementation-plan.md:14:The first useful release is not a generic proxy. It is a managed extraction API with explicit authentication, URL policy, resource limits, structured errors, observable request logs, and predictable output for AI orchestration.\nagent-docs/implementation-plan.md:35:Outcome: A TypeScript/Fastify service boots locally and exposes unauthenticated liveness/readiness checks.\nagent-docs/implementation-plan.md:58:Outcome: A caller can request extraction only after authentication, and unsafe URL targets are blocked before any fetch.\nagent-docs/implementation-plan.md:62:- API key authentication with production fail-fast behavior\nagent-docs/implementation-plan.md:74:- missing auth returns `401` in production-like config\nagent-docs/implementation-plan.md:192:- No cookies, authorization forwarding, or external client tracing header forwarding\nagent-docs/implementation-plan.md:206:- Do not log extracted text, API keys, cookies, authorization values, or arbitrary headers\nagent-docs/implementation-plan.md:218:2. Add config validation and auth.\nsrc/config.ts:31:    .enum([\"development\", \"test\", \"production\"])\nsrc/config.ts:37:  API_KEYS: z.string().default(\"\"),\nsrc/config.ts:56:  \"API_KEYS\" | \"ALLOWED_DOMAINS\" | \"BLOCKED_DOMAINS\"\nsrc/config.ts:67:  const apiKeys = parseCsv(parsed.API_KEYS);\nsrc/config.ts:69:  if (parsed.NODE_ENV === \"production\" && apiKeys.length === 0) {\nsrc/config.ts:70:    throw new Error(\"API_KEYS must not be empty in production\");\nagent-docs/progress-log.md:48:- Moved Story K2 into progress: unsafe or unauthenticated requests are rejected.\nagent-docs/progress-log.md:57:- Added API key authentication for `/v1/extract`, production config fail-fast when keys are empty, request ID aware error responses, URL normalization, domain allow/block checks, DNS-based private IP blocking, and redirect-target policy validation.\nagent-docs/progress-log.md:58:- Added tests for auth, invalid request shape, blocked extract URLs, production API key requirements, URL scheme policy, private and metadata IP blocking, global/request domain controls, and redirect-to-private-IP rejection.\nagent-docs/progress-log.md:103:- Added a multi-stage `Dockerfile` with build, production dependency, and runtime stages.\nagent-docs/progress-log.md:110:- Smoke-ran the image with `API_KEYS=local-dev-key`; the container started and `GET /v1/health` returned the expected JSON from inside the container. Host `localhost:18080` did not connect in this local Docker/Colima environment despite the published port mapping, so external host-port verification remains environment-dependent.\nagent-docs/progress-log.md:127:- Added `SECURITY.md` covering non-goals, auth, fetch controls, sensitive data guidance, and reporting.\nsrc/errors.ts:4:  | \"UNAUTHORIZED\"\nsrc/routes/extract.ts:6:import { authenticateApiKey } from \"../services/auth.js\";\nsrc/routes/extract.ts:44:    authenticateApiKey(request, options.config);\ntest/extractBoundary.test.ts:7:  it(\"requires authentication when API keys are configured\", async () => {\ntest/extractBoundary.test.ts:9:      config: loadConfig({ NODE_ENV: \"test\", API_KEYS: \"test-key\" }),\ntest/extractBoundary.test.ts:24:        code: \"UNAUTHORIZED\"\ntest/extractBoundary.test.ts:31:      config: loadConfig({ NODE_ENV: \"test\", API_KEYS: \"test-key\" }),\ntest/extractBoundary.test.ts:39:        authorization: \"Bearer test-key\"\ntest/extractBoundary.test.ts:54:      config: loadConfig({ NODE_ENV: \"test\", API_KEYS: \"test-key\" }),\ntest/extractBoundary.test.ts:77:  it(\"fails production config when API keys are empty\", () => {\ntest/extractBoundary.test.ts:78:    expect(() => loadConfig({ NODE_ENV: \"production\", API_KEYS: \"\" })).toThrow(\ntest/extractBoundary.test.ts:79:      \"API_KEYS must not be empty in production\"\ntest/extractApi.test.ts:31:        authorization: \"Bearer test-key\"\ntest/extractApi.test.ts:90:        authorization: \"Bearer test-key\"\ntest/extractApi.test.ts:141:        authorization: \"Bearer test-key\"\ntest/extractApi.test.ts:188:        authorization: \"Bearer test-key\"\ntest/extractApi.test.ts:226:        authorization: \"Bearer test-key\"\ntest/extractApi.test.ts:261:        authorization: \"Bearer test-key\"\ntest/extractApi.test.ts:294:        authorization: \"Bearer test-key\"\ntest/extractApi.test.ts:324:        authorization: \"Bearer test-key\"\ntest/extractApi.test.ts:358:        authorization: \"Bearer test-key\"\ntest/extractApi.test.ts:418:        authorization: \"Bearer test-key\"\ntest/extractApi.test.ts:472:        authorization: \"Bearer test-key\"\ntest/extractApi.test.ts:509:        authorization: \"Bearer test-key\"\ntest/extractApi.test.ts:536:      API_KEYS: \"test-key\",\ntest/fixtures/web-html/w3c-berners-lee.html:139:  National Academy of Sciences. He is the author of \"<a href=\ntest/fixtures/web-html/w3c-wcag21.html:202:      \"authors\": [\ntest/fixtures/web-html/w3c-wcag21.html:263:        <dt>Editors:</dt><dd class=\"editor p-author h-card vcard\" data-editor-id=\"39770\">\ntest/fixtures/web-html/w3c-wcag21.html:265:  </dd><dd class=\"editor p-author h-card vcard\" data-editor-id=\"41218\">\ntest/fixtures/web-html/w3c-wcag21.html:267:  </dd><dd class=\"editor p-author h-card vcard\" data-editor-id=\"44689\">\ntest/fixtures/web-html/w3c-wcag21.html:269:  </dd><dd class=\"editor p-author h-card vcard\" data-editor-id=\"34017\">\ntest/fixtures/web-html/w3c-wcag21.html:352:                    </p></section><nav id=\"toc\"><h2 class=\"introductory\" id=\"table-of-contents\">Table of Contents</h2><ol class=\"toc\"><li class=\"tocline\"><a class=\"tocxref\" href=\"#abstract\">Abstract</a></li><li class=\"tocline\"><a class=\"tocxref\" href=\"#sotd\">Status of This Document</a></li><li class=\"tocline\"><a class=\"tocxref\" href=\"#intro\">Introduction</a><ol class=\"toc\"><li class=\"tocline\"><a class=\"tocxref\" href=\"#background-on-wcag-2\">Background on WCAG 2</a></li><li class=\"tocline\"><a class=\"tocxref\" href=\"#wcag-2-layers-of-guidance\">WCAG 2 Layers of Guidance</a></li><li class=\"tocline\"><a class=\"tocxref\" href=\"#wcag-2-1-supporting-documents\">WCAG 2.1 Supporting Documents</a></li><li class=\"tocline\"><a class=\"tocxref\" href=\"#requirements-for-wcag-2-1\">Requirements for WCAG 2.1</a></li><li class=\"tocline\"><a class=\"tocxref\" href=\"#comparison-with-wcag-2-0\">Comparison with WCAG 2.0</a><ol class=\"toc\"><li class=\"tocline\"><a class=\"tocxref\" href=\"#new-features-in-wcag-2-1\">New Features in WCAG 2.1</a></li><li class=\"tocline\"><a class=\"tocxref\" href=\"#numbering-in-wcag-2-1\">Numbering in WCAG 2.1</a></li><li class=\"tocline\"><a class=\"tocxref\" href=\"#conformance-to-wcag-2-1\">Conformance to WCAG 2.1</a></li></ol></li><li class=\"tocline\"><a class=\"tocxref\" href=\"#later-versions-of-accessibility-guidelines\">Later Versions of Accessibility Guidelines</a></li></ol></li><li class=\"tocline\"><a class=\"tocxref\" href=\"#perceivable\"><bdi class=\"secno\">1. </bdi> Perceivable </a><ol class=\"toc\"><li class=\"tocline\"><a class=\"tocxref\" href=\"#text-alternatives\"><bdi class=\"secno\">1.1 </bdi>Text Alternatives</a><ol class=\"toc\"><li class=\"tocline\"><a class=\"tocxref\" href=\"#non-text-content\"><bdi class=\"secno\">1.1.1 </bdi>Non-text Content</a></li></ol></li><li class=\"tocline\"><a class=\"tocxref\" href=\"#time-based-media\"><bdi class=\"secno\">1.2 </bdi>Time-based Media</a><ol class=\"toc\"><li class=\"tocline\"><a class=\"tocxref\" href=\"#audio-only-and-video-only-prerecorded\"><bdi class=\"secno\">1.2.1 </bdi>Audio-only and Video-only (Prerecorded)</a></li><li class=\"tocline\"><a class=\"tocxref\" href=\"#captions-prerecorded\"><bdi class=\"secno\">1.2.2 </bdi>Captions (Prerecorded)</a></li><li class=\"tocline\"><a class=\"tocxref\" href=\"#audio-description-or-media-alternative-prerecorded\"><bdi class=\"secno\">1.2.3 </bdi>Audio Description or Media Alternative (Prerecorded)</a></li><li class=\"tocline\"><a class=\"tocxref\" href=\"#captions-live\"><bdi class=\"secno\">1.2.4 </bdi>Captions (Live)</a></li><li class=\"tocline\"><a class=\"tocxref\" href=\"#audio-description-prerecorded\"><bdi class=\"secno\">1.2.5 </bdi>Audio Description (Prerecorded)</a></li><li class=\"tocline\"><a class=\"tocxref\" href=\"#sign-language-prerecorded\"><bdi class=\"secno\">1.2.6 </bdi>Sign Language (Prerecorded)</a></li><li class=\"tocline\"><a class=\"tocxref\" href=\"#extended-audio-description-prerecorded\"><bdi class=\"secno\">1.2.7 </bdi>Extended Audio Description (Prerecorded)</a></li><li class=\"tocline\"><a class=\"tocxref\" href=\"#media-alternative-prerecorded\"><bdi class=\"secno\">1.2.8 </bdi>Media Alternative (Prerecorded)</a></li><li class=\"tocline\"><a class=\"tocxref\" href=\"#audio-only-live\"><bdi class=\"secno\">1.2.9 </bdi>Audio-only (Live)</a></li></ol></li><li class=\"tocline\"><a class=\"tocxref\" href=\"#adaptable\"><bdi class=\"secno\">1.3 </bdi>Adaptable</a><ol class=\"toc\"><li class=\"tocline\"><a class=\"tocxref\" href=\"#info-and-relationships\"><bdi class=\"secno\">1.3.1 </bdi>Info and Relationships</a></li><li class=\"tocline\"><a class=\"tocxref\" href=\"#meaningful-sequence\"><bdi class=\"secno\">1.3.2 </bdi>Meaningful Sequence</a></li><li class=\"tocline\"><a class=\"tocxref\" href=\"#sensory-characteristics\"><bdi class=\"secno\">1.3.3 </bdi>Sensory Characteristics</a></li><li class=\"tocline\"><a class=\"tocxref\" href=\"#orientation\"><bdi class=\"secno\">1.3.4 </bdi>Orientation</a></li><li class=\"tocline\"><a class=\"tocxref\" href=\"#identify-input-purpose\"><bdi class=\"secno\">1.3.5 </bdi>Identify Input Purpose</a></li><li class=\"tocline\"><a class=\"tocxref\" href=\"#identify-purpose\"><bdi class=\"secno\">1.3.6 </bdi>Identify Purpose</a></li></ol></li><li class=\"tocline\"><a class=\"tocxref\" href=\"#distinguishable\"><bdi class=\"secno\">1.4 </bdi>Distinguishable</a><ol class=\"toc\"><li class=\"tocline\"><a class=\"tocxref\" href=\"#use-of-color\"><bdi class=\"secno\">1.4.1 </bdi>Use of Color</a></li><li class=\"tocline\"><a class=\"tocxref\" href=\"#audio-control\"><bdi class=\"secno\">1.4.2 </bdi>Audio Control</a></li><li class=\"tocline\"><a class=\"tocxref\" href=\"#contrast-minimum\"><bdi class=\"secno\">1.4.3 </bdi>Contrast (Minimum)</a></li><li class=\"tocline\"><a class=\"tocxref\" href=\"#resize-text\"><bdi class=\"secno\">1.4.4 </bdi>Resize Text</a></li><li class=\"tocline\"><a class=\"tocxref\" href=\"#images-of-text\"><bdi class=\"secno\">1.4.5 </bdi>Images of Text</a></li><li class=\"tocline\"><a class=\"tocxref\" href=\"#contrast-enhanced\"><bdi class=\"secno\">1.4.6 </bdi>Contrast (Enhanced)</a></li><li class=\"tocline\"><a class=\"tocxref\" href=\"#low-or-no-background-audio\"><bdi class=\"secno\">1.4.7 </bdi>Low or No Background Audio</a></li><li class=\"tocline\"><a class=\"tocxref\" href=\"#visual-presentation\"><bdi class=\"secno\">1.4.8 </bdi>Visual Presentation</a></li><li class=\"tocline\"><a class=\"tocxref\" href=\"#images-of-text-no-exception\"><bdi class=\"secno\">1.4.9 </bdi>Images of Text (No Exception)</a></li><li class=\"tocline\"><a class=\"tocxref\" href=\"#reflow\"><bdi class=\"secno\">1.4.10 </bdi>Reflow</a></li><li class=\"tocline\"><a class=\"tocxref\" href=\"#non-text-contrast\"><bdi class=\"secno\">1.4.11 </bdi>Non-text Contrast</a></li><li class=\"tocline\"><a class=\"tocxref\" href=\"#text-spacing\"><bdi class=\"secno\">1.4.12 </bdi>Text Spacing</a></li><li class=\"tocline\"><a class=\"tocxref\" href=\"#content-on-hover-or-focus\"><bdi class=\"secno\">1.4.13 </bdi>Content on Hover or Focus</a></li></ol></li></ol></li><li class=\"tocline\"><a class=\"tocxref\" href=\"#operable\"><bdi class=\"secno\">2. </bdi>Operable </a><ol class=\"toc\"><li class=\"tocline\"><a class=\"tocxref\" href=\"#keyboard-accessible\"><bdi class=\"secno\">2.1 </bdi>Keyboard Accessible</a><ol class=\"toc\"><li class=\"tocline\"><a class=\"tocxref\" href=\"#keyboard\"><bdi class=\"secno\">2.1.1 </bdi>Keyboard</a></li><li class=\"tocline\"><a class=\"tocxref\" href=\"#no-keyboard-trap\"><bdi class=\"secno\">2.1.2 </bdi>No Keyboard Trap</a></li><li class=\"tocline\"><a class=\"tocxref\" href=\"#keyboard-no-exception\"><bdi class=\"secno\">2.1.3 </bdi>Keyboard (No Exception)</a></li><li class=\"tocline\"><a class=\"tocxref\" href=\"#character-key-shortcuts\"><bdi class=\"secno\">2.1.4 </bdi>Character Key Shortcuts</a></li></ol></li><li class=\"tocline\"><a class=\"tocxref\" href=\"#enough-time\"><bdi class=\"secno\">2.2 </bdi>Enough Time</a><ol class=\"toc\"><li class=\"tocline\"><a class=\"tocxref\" href=\"#timing-adjustable\"><bdi class=\"secno\">2.2.1 </bdi>Timing Adjustable</a></li><li class=\"tocline\"><a class=\"tocxref\" href=\"#pause-stop-hide\"><bdi class=\"secno\">2.2.2 </bdi>Pause, Stop, Hide</a></li><li class=\"tocline\"><a class=\"tocxref\" href=\"#no-timing\"><bdi class=\"secno\">2.2.3 </bdi>No Timing</a></li><li class=\"tocline\"><a class=\"tocxref\" href=\"#interruptions\"><bdi class=\"secno\">2.2.4 </bdi>Interruptions</a></li><li class=\"tocline\"><a class=\"tocxref\" href=\"#re-authenticating\"><bdi class=\"secno\">2.2.5 </bdi>Re-authenticating</a></li><li class=\"tocline\"><a class=\"tocxref\" href=\"#timeouts\"><bdi class=\"secno\">2.2.6 </bdi>Timeouts</a></li></ol></li><li class=\"tocline\"><a class=\"tocxref\" href=\"#seizures-and-physical-reactions\"><bdi class=\"secno\">2.3 </bdi>Seizures and Physical Reactions</a><ol class=\"toc\"><li class=\"tocline\"><a class=\"tocxref\" href=\"#three-flashes-or-below-threshold\"><bdi class=\"secno\">2.3.1 </bdi>Three Flashes or Below Threshold</a></li><li class=\"tocline\"><a class=\"tocxref\" href=\"#three-flashes\"><bdi class=\"secno\">2.3.2 </bdi>Three Flashes</a></li><li class=\"tocline\"><a class=\"tocxref\" href=\"#animation-from-interactions\"><bdi class=\"secno\">2.3.3 </bdi>Animation from Interactions</a></li></ol></li><li class=\"tocline\"><a class=\"tocxref\" href=\"#navigable\"><bdi class=\"secno\">2.4 </bdi>Navigable</a><ol class=\"toc\"><li class=\"tocline\"><a class=\"tocxref\" href=\"#bypass-blocks\"><bdi class=\"secno\">2.4.1 </bdi>Bypass Blocks</a></li><li class=\"tocline\"><a class=\"tocxref\" href=\"#page-titled\"><bdi class=\"secno\">2.4.2 </bdi>Page Titled</a></li><li class=\"tocline\"><a class=\"tocxref\" href=\"#focus-order\"><bdi class=\"secno\">2.4.3 </bdi>Focus Order</a></li><li class=\"tocline\"><a class=\"tocxref\" href=\"#link-purpose-in-context\"><bdi class=\"secno\">2.4.4 </bdi>Link Purpose (In Context)</a></li><li class=\"tocline\"><a class=\"tocxref\" href=\"#multiple-ways\"><bdi class=\"secno\">2.4.5 </bdi>Multiple Ways</a></li><li class=\"tocline\"><a class=\"tocxref\" href=\"#headings-and-labels\"><bdi class=\"secno\">2.4.6 </bdi>Headings and Labels</a></li><li class=\"tocline\"><a class=\"tocxref\" href=\"#focus-visible\"><bdi class=\"secno\">2.4.7 </bdi>Focus Visible</a></li><li class=\"tocline\"><a class=\"tocxref\" href=\"#location\"><bdi class=\"secno\">2.4.8 </bdi>Location</a></li><li class=\"tocline\"><a class=\"tocxref\" href=\"#link-purpose-link-only\"><bdi class=\"secno\">2.4.9 </bdi>Link Purpose (Link Only)</a></li><li class=\"tocline\"><a class=\"tocxref\" href=\"#section-headings\"><bdi class=\"secno\">2.4.10 </bdi>Section Headings</a></li></ol></li><li class=\"tocline\"><a class=\"tocxref\" href=\"#input-modalities\"><bdi class=\"secno\">2.5 </bdi>Input Modalities</a><ol class=\"toc\"><li class=\"tocline\"><a class=\"tocxref\" href=\"#pointer-gestures\"><bdi class=\"secno\">2.5.1 </bdi>Pointer Gestures</a></li><li class=\"tocline\"><a class=\"tocxref\" href=\"#pointer-cancellation\"><bdi class=\"secno\">2.5.2 </bdi>Pointer Cancellation</a></li><li class=\"tocline\"><a class=\"tocxref\" href=\"#label-in-name\"><bdi class=\"secno\">2.5.3 </bdi>Label in Name</a></li><li class=\"tocline\"><a class=\"tocxref\" href=\"#motion-actuation\"><bdi class=\"secno\">2.5.4 </bdi>Motion Actuation</a></li><li class=\"tocline\"><a class=\"tocxref\" href=\"#target-size\"><bdi class=\"secno\">2.5.5 </bdi>Target Size</a></li><li class=\"tocline\"><a class=\"tocxref\" href=\"#concurrent-input-mechanisms\"><bdi class=\"secno\">2.5.6 </bdi>Concurrent Input Mechanisms</a></li></ol></li></ol></li><li class=\"tocline\"><a class=\"tocxref\" href=\"#understandable\"><bdi class=\"secno\">3. </bdi> Understandable </a><ol class=\"toc\"><li class=\"tocline\">…4243 tokens truncated…ut\ntest/fixtures/web-html/w3c-wcag21.html:1382:      loss of data after re-authenticating.\ntest/fixtures/web-html/w3c-wcag21.html:1396:<div class=\"note\" role=\"note\" id=\"issue-container-generatedID-18\"><div role=\"heading\" class=\"note-title marker\" id=\"h-note-18\" aria-level=\"5\"><span>Note</span></div><p class=\"\">Privacy regulations may require explicit user consent before user identification has been authenticated and before user data is preserved. In cases where the user is a minor, explicit consent may not be solicited in most jurisdictions, countries or regions. Consultation with privacy professionals and legal counsel is advised when considering data preservation as an approach to satisfy this success criterion.</p></div>\ntest/fixtures/web-html/w3c-wcag21.html:1510:   <p>More than one way is available to locate a <a href=\"#dfn-web-page-s\" class=\"internalDFN\" data-link-type=\"dfn\" id=\"ref-for-dfn-web-page-s-6\" title=\"a non-embedded resource obtained from a single URI using HTTP plus any other resources that are used in the rendering or intended to be rendered together with it by a user agent\">web page</a> within a <a href=\"#dfn-set-of-web-pages\" class=\"internalDFN\" data-link-type=\"dfn\" id=\"ref-for-dfn-set-of-web-pages-1\" title=\"collection of web pages that share a common purpose and that are created by the same author, group or organization\">set of web pages</a> except where the web page is the result of, or a step in, a <a href=\"#dfn-processes\" class=\"internalDFN\" data-link-type=\"dfn\" id=\"ref-for-dfn-processes-1\" title=\"series of user actions where each action is required in order to complete an activity\">process</a>.\ntest/fixtures/web-html/w3c-wcag21.html:1546:   <p>Information about the user's location within a <a href=\"#dfn-set-of-web-pages\" class=\"internalDFN\" data-link-type=\"dfn\" id=\"ref-for-dfn-set-of-web-pages-2\" title=\"collection of web pages that share a common purpose and that are created by the same author, group or organization\">set of web pages</a> is available.\ntest/fixtures/web-html/w3c-wcag21.html:1679:  <dd>The size of the target is determined by the user agent and is not modified by the author;</dd>\ntest/fixtures/web-html/w3c-wcag21.html:1711:   <p>The default <a href=\"#dfn-human-language-s\" class=\"internalDFN\" data-link-type=\"dfn\" id=\"ref-for-dfn-human-language-s-2\" title=\"language that is spoken, written or signed (through visual or tactile means) to communicate with humans\">human language</a> of each <a href=\"#dfn-web-page-s\" class=\"internalDFN\" data-link-type=\"dfn\" id=\"ref-for-dfn-web-page-s-7\" title=\"a non-embedded resource obtained from a single URI using HTTP plus any other resources that are used in the rendering or intended to be rendered together with it by a user agent\">web page</a> can be <a href=\"#dfn-programmatically-determinable\" class=\"internalDFN\" data-link-type=\"dfn\" id=\"ref-for-dfn-programmatically-determinable-5\" title=\"determined by software from author-supplied data provided in a way that different user agents, including assistive technologies, can extract and present this information to users in different modalities\">programmatically determined</a>.\ntest/fixtures/web-html/w3c-wcag21.html:1723:   <p>The <a href=\"#dfn-human-language-s\" class=\"internalDFN\" data-link-type=\"dfn\" id=\"ref-for-dfn-human-language-s-3\" title=\"language that is spoken, written or signed (through visual or tactile means) to communicate with humans\">human language</a> of each passage or phrase in the content can be <a href=\"#dfn-programmatically-determinable\" class=\"internalDFN\" data-link-type=\"dfn\" id=\"ref-for-dfn-programmatically-determinable-6\" title=\"determined by software from author-supplied data provided in a way that different user agents, including assistive technologies, can extract and present this information to users in different modalities\">programmatically determined</a> except for proper names, technical terms, words of indeterminate language, and words\ntest/fixtures/web-html/w3c-wcag21.html:1817:   <p>Navigational mechanisms that are repeated on multiple <a href=\"#dfn-web-page-s\" class=\"internalDFN\" data-link-type=\"dfn\" id=\"ref-for-dfn-web-page-s-8\" title=\"a non-embedded resource obtained from a single URI using HTTP plus any other resources that are used in the rendering or intended to be rendered together with it by a user agent\">web pages</a> within a <a href=\"#dfn-set-of-web-pages\" class=\"internalDFN\" data-link-type=\"dfn\" id=\"ref-for-dfn-set-of-web-pages-3\" title=\"collection of web pages that share a common purpose and that are created by the same author, group or organization\">set of web pages</a> occur in the <a href=\"#dfn-same-relative-order\" class=\"internalDFN\" data-link-type=\"dfn\" id=\"ref-for-dfn-same-relative-order-1\" title=\"same position relative to other items\">same relative order</a> each time they are repeated, unless a change is initiated by the user.\ntest/fixtures/web-html/w3c-wcag21.html:1829:   <p>Components that have the <a href=\"#dfn-same-functionality\" class=\"internalDFN\" data-link-type=\"dfn\" id=\"ref-for-dfn-same-functionality-1\" title=\"same result when used\">same functionality</a> within a <a href=\"#dfn-set-of-web-pages\" class=\"internalDFN\" data-link-type=\"dfn\" id=\"ref-for-dfn-set-of-web-pages-4\" title=\"collection of web pages that share a common purpose and that are created by the same author, group or organization\">set of web pages</a> are identified consistently.\ntest/fixtures/web-html/w3c-wcag21.html:1969:      <p>Although the HTML standard treats some of these cases as non-conforming for authors, it is considered to \"allow these features\" for the purposes of this success criterion because the specification requires that user agents support handling these cases consistently. In practice, this criterion no longer provides any benefit to people with disabilities in itself.</p>\ntest/fixtures/web-html/w3c-wcag21.html:1984:     the <a href=\"#dfn-name\" class=\"internalDFN\" data-link-type=\"dfn\" id=\"ref-for-dfn-name-3\" title=\"text by which software can identify a component within web content to the user\">name</a> and <a href=\"#dfn-role\" class=\"internalDFN\" data-link-type=\"dfn\" id=\"ref-for-dfn-role-1\" title=\"text or number by which software can identify the function of a component within Web content\">role</a> can be <a href=\"#dfn-programmatically-determinable\" class=\"internalDFN\" data-link-type=\"dfn\" id=\"ref-for-dfn-programmatically-determinable-7\" title=\"determined by software from author-supplied data provided in a way that different user agents, including assistive technologies, can extract and present this information to users in different modalities\">programmatically determined</a>; <a href=\"#dfn-states\" class=\"internalDFN\" data-link-type=\"dfn\" id=\"ref-for-dfn-states-2\" title=\"dynamic property expressing characteristics of a user interface component that may change in response to user action or automated processes\">states</a>, properties, and values that can be set by the user can be <a href=\"#dfn-programmatically-set\" class=\"internalDFN\" data-link-type=\"dfn\" id=\"ref-for-dfn-programmatically-set-1\" title=\"set by software using methods that are supported by user agents, including assistive technologies\">programmatically set</a>; and notification of changes to these items is available to <a href=\"#dfn-user-agents\" class=\"internalDFN\" data-link-type=\"dfn\" id=\"ref-for-dfn-user-agents-3\" title=\"any software that retrieves and presents web content for users\">user agents</a>, including <a href=\"#dfn-assistive-technologies\" class=\"internalDFN\" data-link-type=\"dfn\" id=\"ref-for-dfn-assistive-technologies-4\" title=\"hardware and/or software that acts as a user agent, or along with a mainstream user agent, to provide functionality to meet the requirements of users with disabilities that go beyond those offered by mainstream user agents\">assistive technologies</a>.\ntest/fixtures/web-html/w3c-wcag21.html:1987:   <div class=\"note\" role=\"note\" id=\"issue-container-generatedID-28\"><div role=\"heading\" class=\"note-title marker\" id=\"h-note-28\" aria-level=\"5\"><span>Note</span></div><p class=\"\">This success criterion is primarily for web authors who develop or script their own\ntest/fixtures/web-html/w3c-wcag21.html:2001:   <p>In content implemented using markup languages, <a href=\"#dfn-status-messages\" class=\"internalDFN\" data-link-type=\"dfn\" id=\"ref-for-dfn-status-messages-1\" title=\"change in content that is not a change of context, and that provides information to the user on the success or results of an action, on the waiting state of an application, on the progress of a process, or on the existence of errors\">status messages</a> can be <a href=\"#dfn-programmatically-determinable\" class=\"internalDFN\" data-link-type=\"dfn\" id=\"ref-for-dfn-programmatically-determinable-8\" title=\"determined by software from author-supplied data provided in a way that different user agents, including assistive technologies, can extract and present this information to users in different modalities\">programmatically determined</a> through <a href=\"#dfn-role\" class=\"internalDFN\" data-link-type=\"dfn\" id=\"ref-for-dfn-role-2\" title=\"text or number by which software can identify the function of a component within Web content\">role</a> or properties such that they can be presented to the user by <a href=\"#dfn-assistive-technologies\" class=\"internalDFN\" data-link-type=\"dfn\" id=\"ref-for-dfn-assistive-technologies-5\" title=\"hardware and/or software that acts as a user agent, or along with a mainstream user agent, to provide functionality to meet the requirements of users with disabilities that go beyond those offered by mainstream user agents\">assistive technologies</a> without receiving focus.</p>\ntest/fixtures/web-html/w3c-wcag21.html:2035:                    <div class=\"note\" role=\"note\" id=\"issue-container-generatedID-29\"><div role=\"heading\" class=\"note-title marker\" id=\"h-note-29\" aria-level=\"5\"><span>Note 1</span></div><p class=\"\">Although conformance can only be achieved at the stated levels, authors are encouraged to report (in their claim) any progress toward meeting success criteria from all levels beyond the achieved level of conformance.</p></div>\ntest/fixtures/web-html/w3c-wcag21.html:2044:                    <div class=\"note\" role=\"note\" id=\"issue-container-generatedID-32\"><div role=\"heading\" class=\"note-title marker\" id=\"h-note-32\" aria-level=\"5\"><span>Note 2</span></div><p class=\"\">Authors of web pages that cannot conform due to content outside of the author's control may consider a <a href=\"#conformance-partial\">Statement of Partial Conformance</a>.</p></div>\ntest/fixtures/web-html/w3c-wcag21.html:2140:                            <li>It is not content that is under the author's control.</li>\ntest/fixtures/web-html/w3c-wcag21.html:2305:   <div class=\"note\" role=\"note\" id=\"issue-container-generatedID-47\"><div role=\"heading\" class=\"note-title marker\" id=\"h-note-47\" aria-level=\"3\"><span>Note 5</span></div><p class=\"\">One way for authors to locate uses of a technology that are accessibility supported\ntest/fixtures/web-html/w3c-wcag21.html:2427:   <p>the technology of sound reproduction</p>\ntest/fixtures/web-html/w3c-wcag21.html:2451:   <div class=\"note\" role=\"note\" id=\"issue-container-generatedID-55\"><div role=\"heading\" class=\"note-title marker\" id=\"h-note-55\" aria-level=\"3\"><span>Note 3</span></div><p class=\"\">Where all of the <a href=\"#dfn-video\" class=\"internalDFN\" data-link-type=\"dfn\" id=\"ref-for-dfn-video-5\" title=\"the technology of moving or sequenced pictures or images\">video</a> information is already provided in existing <a href=\"#dfn-audio\" class=\"internalDFN\" data-link-type=\"dfn\" id=\"ref-for-dfn-audio-4\" title=\"the technology of sound reproduction\">audio</a>, no additional audio description is necessary.\ntest/fixtures/web-html/w3c-wcag21.html:2462:   <p>a time-based presentation that contains only <a href=\"#dfn-audio\" class=\"internalDFN\" data-link-type=\"dfn\" id=\"ref-for-dfn-audio-5\" title=\"the technology of sound reproduction\">audio</a> (no <a href=\"#dfn-video\" class=\"internalDFN\" data-link-type=\"dfn\" id=\"ref-for-dfn-video-6\" title=\"the technology of moving or sequenced pictures or images\">video</a> and no interaction)\ntest/fixtures/web-html/w3c-wcag21.html:2689:   <div class=\"note\" role=\"note\" id=\"issue-container-generatedID-76\"><div role=\"heading\" class=\"note-title marker\" id=\"h-note-76\" aria-level=\"3\"><span>Note 2</span></div><p class=\"\">Because authors do not have control over user settings as to how text is rendered\ntest/fixtures/web-html/w3c-wcag21.html:2713:      an author would expect to appear adjacent in typical presentation. Authors need not\ntest/fixtures/web-html/w3c-wcag21.html:2715:      where caused by authors' code.\ntest/fixtures/web-html/w3c-wcag21.html:2740:      and the assumed viewing distance (factors that cannot be determined by content authors).\ntest/fixtures/web-html/w3c-wcag21.html:3026:   <div class=\"note\" role=\"note\" id=\"issue-container-generatedID-99\"><div role=\"heading\" class=\"note-title marker\" id=\"h-note-99\" aria-level=\"3\"><span>Note 3</span></div><p class=\"\">The actual size of the character that a user sees is dependent both on the author-defined\ntest/fixtures/web-html/w3c-wcag21.html:3029:      of the default size for body text (assuming that the body font is 100%), but authors\ntest/fixtures/web-html/w3c-wcag21.html:3167:   <p>any content that is not a sequence of characters that can be <a href=\"#dfn-programmatically-determinable\" class=\"internalDFN\" data-link-type=\"dfn\" id=\"ref-for-dfn-programmatically-determinable-9\" title=\"determined by software from author-supplied data provided in a way that different user agents, including assistive technologies, can extract and present this information to users in different modalities\">programmatically determined</a> or where the sequence is not expressing something in <a href=\"#dfn-human-language-s\" class=\"internalDFN\" data-link-type=\"dfn\" id=\"ref-for-dfn-human-language-s-6\" title=\"language that is spoken, written or signed (through visual or tactile means) to communicate with humans\">human language</a></p>\ntest/fixtures/web-html/w3c-wcag21.html:3273:   <p>determined by software from author-supplied data provided in a way that different\ntest/fixtures/web-html/w3c-wcag21.html:3292:   <p>additional information that can be <a href=\"#dfn-programmatically-determinable\" class=\"internalDFN\" data-link-type=\"dfn\" id=\"ref-for-dfn-programmatically-determinable-10\" title=\"determined by software from author-supplied data provided in a way that different user agents, including assistive technologies, can extract and present this information to users in different modalities\">programmatically determined</a> from <a href=\"#dfn-relationships\" class=\"internalDFN\" data-link-type=\"dfn\" id=\"ref-for-dfn-relationships-2\" title=\"meaningful associations between distinct pieces of content\">relationships</a> with a link, combined with the link text, and presented to users in different modalities\ntest/fixtures/web-html/w3c-wcag21.html:3352:  <p>perceivable, <a href=\"#dfn-programmatically-determinable\" class=\"internalDFN\" data-link-type=\"dfn\" id=\"ref-for-dfn-programmatically-determinable-11\" title=\"determined by software from author-supplied data provided in a way that different user agents, including assistive technologies, can extract and present this information to users in different modalities\">programmatically determined</a> <a href=\"#dfn-section\" class=\"internalDFN\" data-link-type=\"dfn\" id=\"ref-for-dfn-section-2\" title=\"a self-contained portion of written content that deals with one or more related topics or thoughts\">section</a> of content</p>\ntest/fixtures/web-html/w3c-wcag21.html:3412:      authors should evaluate using sRGB colorspace. If using other color spaces, see <a href=\"https://www.w3.org/WAI/WCAG21/Understanding/contrast-minimum\">Understanding Success Criterion 1.4.3</a>.\ntest/fixtures/web-html/w3c-wcag21.html:3507:   <p>collection of <a href=\"#dfn-web-page-s\" class=\"internalDFN\" data-link-type=\"dfn\" id=\"ref-for-dfn-web-page-s-18\" title=\"a non-embedded resource obtained from a single URI using HTTP plus any other resources that are used in the rendering or intended to be rendered together with it by a user agent\">web pages</a> that share a common purpose and that are created by the same author, group or organization\ntest/fixtures/web-html/w3c-wcag21.html:3514:      <li>a blog on a sub-domain (e.g. blog.example.com) which has a different navigation and is authored by a distinct set of people from the pages on the primary domain (example.com).</li>\ntest/fixtures/web-html/w3c-wcag21.html:3602:      <li>User agent default styles: The default style property values applied in the absence of any author or user styles. Some web content technologies specify a default rendering, others do not;</li>\ntest/fixtures/web-html/w3c-wcag21.html:3603:      <li>Author styles: Style property values that are set by the author as part of the content (e.g. in-line styles, author style\ntest/fixtures/web-html/w3c-wcag21.html:3632:   <p><a href=\"#dfn-audio\" class=\"internalDFN\" data-link-type=\"dfn\" id=\"ref-for-dfn-audio-6\" title=\"the technology of sound reproduction\">audio</a> or <a href=\"#dfn-video\" class=\"internalDFN\" data-link-type=\"dfn\" id=\"ref-for-dfn-video-10\" title=\"the technology of moving or sequenced pictures or images\">video</a> synchronized with another format for presenting information and/or with time-based\ntest/fixtures/web-html/w3c-wcag21.html:3659:      languages that authors may use alone or in combination to create end-user experiences\ntest/fixtures/web-html/w3c-wcag21.html:3674:   <p>sequence of characters that can be <a href=\"#dfn-programmatically-determinable\" class=\"internalDFN\" data-link-type=\"dfn\" id=\"ref-for-dfn-programmatically-determinable-12\" title=\"determined by software from author-supplied data provided in a way that different user agents, including assistive technologies, can extract and present this information to users in different modalities\">programmatically determined</a>, where the sequence is expressing something in <a href=\"#dfn-human-language-s\" class=\"internalDFN\" data-link-type=\"dfn\" id=\"ref-for-dfn-human-language-s-7\" title=\"language that is spoken, written or signed (through visual or tactile means) to communicate with humans\">human language</a></p>\ntest/fixtures/web-html/w3c-wcag21.html:3683:      Programmatically associated text is text whose location can be <a href=\"#dfn-programmatically-determinable\" class=\"internalDFN\" data-link-type=\"dfn\" id=\"ref-for-dfn-programmatically-determinable-13\" title=\"determined by software from author-supplied data provided in a way that different user agents, including assistive technologies, can extract and present this information to users in different modalities\">programmatically determined</a>\ntest/fixtures/web-html/w3c-wcag21.html:3793:   <p>a time-based presentation that contains only <a href=\"#dfn-video\" class=\"internalDFN\" data-link-type=\"dfn\" id=\"ref-for-dfn-video-11\" title=\"the technology of moving or sequenced pictures or images\">video</a> (no <a href=\"#dfn-audio\" class=\"internalDFN\" data-link-type=\"dfn\" id=\"ref-for-dfn-audio-7\" title=\"the technology of sound reproduction\">audio</a> and no interaction)\ntest/fixtures/web-html/w3c-wcag21.html:3866:\t<p>This section contains a listing of common <a href=\"#dfn-user-interface-components\" class=\"internalDFN\" data-link-type=\"dfn\" id=\"ref-for-dfn-user-interface-components-14\" title=\"a part of the content that is perceived by users as a single control for a distinct function\">user interface component</a> input purposes. The terms below are not keywords that must be used, but instead represent purposes that must be captured in the taxonomy adopted by a webpage. Where applicable, authors mark up controls with the chosen taxonomy to indicate the semantic purpose. This provides the potential for user agents and assistive technologies to apply personalized presentations that can enable more people to understand and use the content.</p>\n",
+      "timestamp": "2026-05-03T07:29:10.226Z"
+    },
+    {
+      "kind": "assistant",
+      "role": "assistant",
+      "text": "The auth code already skips auth when `apiKeys` is empty; the only hard blocker is the production config fail-fast plus docs/tests describing the old requirement. I’m removing that fail-fast and adding explicit coverage for unauthenticated production mode.",
+      "timestamp": "2026-05-03T07:29:14.147Z"
+    },
+    {
+      "kind": "tool",
+      "role": "tool",
+      "text": "[tool_call] exec_command\n{\"cmd\":\"sed -n '1,130p' test/extractBoundary.test.ts\",\"workdir\":\"/Users/ufinity/Documents/GitHub/web-fetch-extract\",\"yield_time_ms\":1000,\"max_output_tokens\":12000}",
+      "timestamp": "2026-05-03T07:29:15.220Z"
+    },
+    {
+      "kind": "tool",
+      "role": "tool",
+      "text": "[tool_result] call_id=call_aDvmzVh0uH84NBZj8ywUtoa7\nChunk ID: f41929\nWall time: 0.0000 seconds\nProcess exited with code 0\nOriginal token count: 495\nOutput:\nimport { describe, expect, it } from \"vitest\";\n\nimport { buildApp } from \"../src/app.js\";\nimport { loadConfig } from \"../src/config.js\";\n\ndescribe(\"extract boundary\", () => {\n  it(\"requires authentication when API keys are configured\", async () => {\n    const app = buildApp({\n      config: loadConfig({ NODE_ENV: \"test\", API_KEYS: \"test-key\" }),\n      logger: false\n    });\n\n    const response = await app.inject({\n      method: \"POST\",\n      url: \"/v1/extract\",\n      payload: {\n        url: \"https://example.com\"\n      }\n    });\n\n    expect(response.statusCode).toBe(401);\n    expect(response.json()).toMatchObject({\n      error: {\n        code: \"UNAUTHORIZED\"\n      }\n    });\n  });\n\n  it(\"returns invalid request for a missing URL\", async () => {\n    const app = buildApp({\n      config: loadConfig({ NODE_ENV: \"test\", API_KEYS: \"test-key\" }),\n      logger: false\n    });\n\n    const response = await app.inject({\n      method: \"POST\",\n      url: \"/v1/extract\",\n      headers: {\n        authorization: \"Bearer test-key\"\n      },\n      payload: {}\n    });\n\n    expect(response.statusCode).toBe(400);\n    expect(response.json()).toMatchObject({\n      error: {\n        code: \"INVALID_REQUEST\"\n      }\n    });\n  });\n\n  it(\"blocks unsafe URLs before extraction\", async () => {\n    const app = buildApp({\n      config: loadConfig({ NODE_ENV: \"test\", API_KEYS: \"test-key\" }),\n      logger: false\n    });\n\n    const response = await app.inject({\n      method: \"POST\",\n      url: \"/v1/extract\",\n      headers: {\n        \"x-api-key\": \"test-key\"\n      },\n      payload: {\n        url: \"https://127.0.0.1\"\n      }\n    });\n\n    expect(response.statusCode).toBe(403);\n    expect(response.json()).toMatchObject({\n      error: {\n        code: \"URL_BLOCKED\"\n      }\n    });\n  });\n\n  it(\"fails production config when API keys are empty\", () => {\n    expect(() => loadConfig({ NODE_ENV: \"production\", API_KEYS: \"\" })).toThrow(\n      \"API_KEYS must not be empty in production\"\n    );\n  });\n});\n",
+      "timestamp": "2026-05-03T07:29:15.293Z"
+    },
+    {
+      "kind": "user",
+      "role": "user",
+      "text": "add as incremental user story if you gonna write code",
+      "timestamp": "2026-05-03T07:30:19.628Z"
+    },
+    {
+      "kind": "assistant",
+      "role": "assistant",
+      "text": "You’re right. Since this changes behavior, I’m adding it as a new incremental story instead of silently rewriting K2 history. I’ll keep the previous notes as historical context and add K11 for optional auth.",
+      "timestamp": "2026-05-03T07:30:24.506Z"
+    },
+    {
+      "kind": "assistant",
+      "role": "assistant",
+      "text": "K11 is now in the kanban as the incremental behavior change. I’m running the project checks so the auth semantics change is verified end to end.",
+      "timestamp": "2026-05-03T07:30:39.753Z"
+    },
+    {
+      "kind": "tool",
+      "role": "tool",
+      "text": "[tool_call] exec_command\n{\"cmd\":\"npm run typecheck\",\"workdir\":\"/Users/ufinity/Documents/GitHub/web-fetch-extract\",\"yield_time_ms\":1000,\"max_output_tokens\":12000}",
+      "timestamp": "2026-05-03T07:30:39.768Z"
+    },
+    {
+      "kind": "tool",
+      "role": "tool",
+      "text": "[tool_call] exec_command\n{\"cmd\":\"npm run lint\",\"workdir\":\"/Users/ufinity/Documents/GitHub/web-fetch-extract\",\"yield_time_ms\":1000,\"max_output_tokens\":12000}",
+      "timestamp": "2026-05-03T07:30:39.786Z"
+    },
+    {
+      "kind": "tool",
+      "role": "tool",
+      "text": "[tool_call] exec_command\n{\"cmd\":\"npm test\",\"workdir\":\"/Users/ufinity/Documents/GitHub/web-fetch-extract\",\"yield_time_ms\":1000,\"max_output_tokens\":20000}",
+      "timestamp": "2026-05-03T07:30:39.814Z"
+    },
+    {
+      "kind": "tool",
+      "role": "tool",
+      "text": "[tool_call] exec_command\n{\"cmd\":\"npm run build\",\"workdir\":\"/Users/ufinity/Documents/GitHub/web-fetch-extract\",\"yield_time_ms\":1000,\"max_output_tokens\":12000}",
+      "timestamp": "2026-05-03T07:30:39.818Z"
+    },
+    {
+      "kind": "tool",
+      "role": "tool",
+      "text": "[tool_result] call_id=call_Kpk5F8p8YTfn9TCmQrjFHCev\nChunk ID: b97e8d\nWall time: 1.0034 seconds\nProcess running with session ID 58102\nOriginal token count: 18\nOutput:\n\n> web-fetch-extract@0.1.0 typecheck\n> tsc --noEmit -p tsconfig.json\n\n",
+      "timestamp": "2026-05-03T07:30:40.940Z"
+    },
+    {
+      "kind": "tool",
+      "role": "tool",
+      "text": "[tool_result] call_id=call_7uKSHGUymCFdNparZm3AkZG6\nChunk ID: b7a8e7\nWall time: 1.0018 seconds\nProcess running with session ID 69524\nOriginal token count: 11\nOutput:\n\n> web-fetch-extract@0.1.0 lint\n> eslint .\n\n",
+      "timestamp": "2026-05-03T07:30:40.954Z"
+    },
+    {
+      "kind": "tool",
+      "role": "tool",
+      "text": "[tool_result] call_id=call_sUNfSPohYYXXn4L0y1AdnTsy\nChunk ID: b0e2a8\nWall time: 1.0051 seconds\nProcess running with session ID 26054\nOriginal token count: 28\nOutput:\n\n> web-fetch-extract@0.1.0 test\n> vitest run\n\n\n RUN  v4.1.5 /Users/ufinity/Documents/GitHub/web-fetch-extract\n\n",
+      "timestamp": "2026-05-03T07:30:40.987Z"
+    },
+    {
+      "kind": "tool",
+      "role": "tool",
+      "text": "[tool_result] call_id=call_SHyWzHmVOPOv6Aj7cADW7jAP\nChunk ID: 0d6a80\nWall time: 1.0060 seconds\nProcess running with session ID 9415\nOriginal token count: 15\nOutput:\n\n> web-fetch-extract@0.1.0 build\n> tsc -p tsconfig.json\n\n",
+      "timestamp": "2026-05-03T07:30:41.002Z"
+    },
+    {
+      "kind": "tool",
+      "role": "tool",
+      "text": "[tool_call] write_stdin\n{\"session_id\":58102,\"chars\":\"\",\"yield_time_ms\":1000,\"max_output_tokens\":12000}",
+      "timestamp": "2026-05-03T07:30:47.055Z"
+    },
+    {
+      "kind": "tool",
+      "role": "tool",
+      "text": "[tool_call] write_stdin\n{\"session_id\":69524,\"chars\":\"\",\"yield_time_ms\":1000,\"max_output_tokens\":12000}",
+      "timestamp": "2026-05-03T07:30:47.062Z"
+    },
+    {
+      "kind": "tool",
+      "role": "tool",
+      "text": "[tool_call] write_stdin\n{\"session_id\":26054,\"chars\":\"\",\"yield_time_ms\":1000,\"max_output_tokens\":20000}",
+      "timestamp": "2026-05-03T07:30:47.067Z"
+    },
+    {
+      "kind": "tool",
+      "role": "tool",
+      "text": "[tool_call] write_stdin\n{\"session_id\":9415,\"chars\":\"\",\"yield_time_ms\":1000,\"max_output_tokens\":12000}",
+      "timestamp": "2026-05-03T07:30:47.073Z"
+    },
+    {
+      "kind": "tool",
+      "role": "tool",
+      "text": "[tool_result] call_id=call_8ImcHL9FGGl85oYBNPe7cGpf\nChunk ID: e80b74\nWall time: 0.0000 seconds\nProcess exited with code 0\nOriginal token count: 0\nOutput:\n",
+      "timestamp": "2026-05-03T07:30:47.085Z"
+    },
+    {
+      "kind": "tool",
+      "role": "tool",
+      "text": "[tool_result] call_id=call_SnYq1La5TDtfsBMpR1Sn6kXN\nChunk ID: e65acd\nWall time: 0.0000 seconds\nProcess exited with code 0\nOriginal token count: 0\nOutput:\n",
+      "timestamp": "2026-05-03T07:30:47.085Z"
+    },
+    {
+      "kind": "tool",
+      "role": "tool",
+      "text": "[tool_result] call_id=call_qhFWuCsdpGcq4elhmqB7P8aU\nChunk ID: 793ad6\nWall time: 0.0000 seconds\nProcess exited with code 0\nOriginal token count: 43\nOutput:\n\n Test Files  6 passed (6)\n      Tests  37 passed (37)\n   Start at  15:30:40\n   Duration  4.10s (transform 707ms, setup 0ms, import 9.82s, tests 1.93s, environment 1ms)\n\n",
+      "timestamp": "2026-05-03T07:30:47.085Z"
+    },
+    {
+      "kind": "tool",
+      "role": "tool",
+      "text": "[tool_result] call_id=call_BisNjb2Izf4JiO5ajS1ob2yd\nChunk ID: 41da8a\nWall time: 0.0000 seconds\nProcess exited with code 0\nOriginal token count: 0\nOutput:\n",
+      "timestamp": "2026-05-03T07:30:47.086Z"
+    },
+    {
+      "kind": "tool",
+      "role": "tool",
+      "text": "[tool_call] exec_command\n{\"cmd\":\"git diff -- src/config.ts test/extractBoundary.test.ts README.md SECURITY.md SPEC.md .env.example agent-docs/user-stories-kanban.md agent-docs/implementation-plan.md agent-docs/progress-log.md\",\"workdir\":\"/Users/ufinity/Documents/GitHub/web-fetch-extract\",\"yield_time_ms\":1000,\"max_output_tokens\":20000}",
+      "timestamp": "2026-05-03T07:30:52.923Z"
+    },
+    {
+      "kind": "tool",
+      "role": "tool",
+      "text": "[tool_result] call_id=call_A3VQmaan72Rhh3BHEIg124xv\nChunk ID: 172c39\nWall time: 0.0000 seconds\nProcess exited with code 0\nOriginal token count: 2579\nOutput:\ndiff --git a/.env.example b/.env.example\nindex 9a9c87d..5b5265e 100644\n--- a/.env.example\n+++ b/.env.example\n@@ -3,6 +3,7 @@ PORT=8080\n LOG_LEVEL=info\n \n # Auth\n+# Empty means authentication is disabled. Set one or more comma-separated keys to require auth.\n API_KEYS=change-me-local-dev-key\n \n # Fetch policy\ndiff --git a/README.md b/README.md\nindex 7bee092..2f88da6 100644\n--- a/README.md\n+++ b/README.md\n@@ -12,12 +12,14 @@ npm test\n npm run build\n ```\n \n-Start locally:\n+Start locally with authentication:\n \n ```bash\n API_KEYS=local-dev-key npm run dev\n ```\n \n+If `API_KEYS` is empty or unset, `/v1/extract` does not require authentication. That can be useful behind a trusted gateway, but do not expose an unauthenticated instance directly to the public internet.\n+\n Health:\n \n ```bash\n@@ -41,7 +43,7 @@ Response content is bounded by `maxTextChars`, `chunkSizeChars`, `chunkOverlapCh\n \n ## Safety Model\n \n-The service is not an open proxy. It enforces API key auth, URL scheme policy, DNS/IP blocking, redirect target checks, domain allow/block rules, request timeouts, PDF/OCR/browser limits, and controlled outbound headers.\n+The service is not an open proxy. It can enforce API key auth, and always enforces URL scheme policy, DNS/IP blocking, redirect target checks, domain allow/block rules, request timeouts, PDF/OCR/browser limits, and controlled outbound headers.\n \n ## Docker\n \n@@ -67,7 +69,7 @@ curl http://localhost:8080/v1/health\n \n ## Configuration\n \n-Copy `.env.example` and set at least `API_KEYS` for production-like runs.\n+Copy `.env.example` and set `API_KEYS` when the service should enforce its own API key auth. Leave `API_KEYS` empty only when another trusted layer handles access control.\n \n Key controls:\n \ndiff --git a/SECURITY.md b/SECURITY.md\nindex 2d9c67a..689dd61 100644\n--- a/SECURITY.md\n+++ b/SECURITY.md\n@@ -16,13 +16,15 @@ This service fetches public URLs and extracts readable text. It is not a proxy,\n \n ## Authentication\n \n-Production requires `API_KEYS` to be non-empty at boot. Callers authenticate with:\n+If `API_KEYS` is empty, `/v1/extract` does not require service-level authentication. This is intended for deployments behind a trusted gateway, private network boundary, or platform IAM layer. Do not expose an unauthenticated instance directly to the public internet.\n+\n+If `API_KEYS` is set, callers authenticate with:\n \n ```http\n Authorization: Bearer <api-key>\n ```\n \n-Development also accepts:\n+The service also accepts:\n \n ```http\n x-api-key: <api-key>\ndiff --git a/SPEC.md b/SPEC.md\nindex fb4f48e..89e5849 100644\n--- a/SPEC.md\n+++ b/SPEC.md\n@@ -10,7 +10,7 @@ This contract is derived from `agent-bootstrap-docs/web-fetch-extract-service-sp\n \n ## Authentication\n \n-Use `Authorization: Bearer <api-key>`. In development and test, `x-api-key` is also accepted. Production boot fails if `API_KEYS` is empty.\n+If `API_KEYS` is empty, extraction requests are unauthenticated. If `API_KEYS` is set, use `Authorization: Bearer <api-key>` or `x-api-key`.\n \n ## Extraction Inputs\n \n@@ -47,4 +47,4 @@ Chunks include character offsets and may include `pageStart` / `pageEnd` for PDF\n \n ## Safety Model\n \n-The service enforces URL scheme, DNS/IP, domain, redirect, auth, timeout, page, OCR, browser, text, and chunk limits. It does not forward arbitrary caller headers.\n+The service enforces URL scheme, DNS/IP, domain, redirect, timeout, page, OCR, browser, text, and chunk limits. API key auth is enforced only when `API_KEYS` is configured. It does not forward arbitrary caller headers.\ndiff --git a/agent-docs/implementation-plan.md b/agent-docs/implementation-plan.md\nindex ee70453..6335981 100644\n--- a/agent-docs/implementation-plan.md\n+++ b/agent-docs/implementation-plan.md\n@@ -59,7 +59,7 @@ Outcome: A caller can request extraction only after authentication, and unsafe U\n \n Scope:\n \n-- API key authentication with production fail-fast behavior\n+- optional API key authentication; empty `API_KEYS` means auth is disabled\n - request ID handling\n - URL parsing and normalization\n - scheme policy\n@@ -71,7 +71,7 @@ Scope:\n \n Acceptance checks:\n \n-- missing auth returns `401` in production-like config\n+- missing auth returns `401` when API keys are configured\n - malformed URL returns `400`\n - blocked URL returns `403`\n - `file://`, localhost, `127.0.0.1`, RFC1918 ranges, and `169.254.169.254` are rejected\n@@ -193,6 +193,7 @@ Security:\n - No unrestricted proxy behavior\n - No private/internal network access unless deliberately enabled by future policy changes\n - No privileged Cloud Run container\n+- If `API_KEYS` is empty, deploy only behind a trusted gateway, private boundary, or platform IAM layer.\n \n Reliability:\n \ndiff --git a/agent-docs/progress-log.md b/agent-docs/progress-log.md\nindex 83a8d5a..c2c87e2 100644\n--- a/agent-docs/progress-log.md\n+++ b/agent-docs/progress-log.md\n@@ -54,10 +54,17 @@ Begin Story K1 from `agent-docs/user-stories-kanban.md`: scaffold the Node/TypeS\n ### Boundary Implementation Update\n \n - Completed Story K2.\n-- Added API key authentication for `/v1/extract`, production config fail-fast when keys are empty, request ID aware error responses, URL normalization, domain allow/block checks, DNS-based private IP blocking, and redirect-target policy validation.\n-- Added tests for auth, invalid request shape, blocked extract URLs, production API key requirements, URL scheme policy, private and metadata IP blocking, global/request domain controls, and redirect-to-private-IP rejection.\n+- Added API key authentication for `/v1/extract`, request ID aware error responses, URL normalization, domain allow/block checks, DNS-based private IP blocking, and redirect-target policy validation.\n+- Added tests for auth, invalid request shape, blocked extract URLs, optional unauthenticated mode, URL scheme policy, private and metadata IP blocking, global/request domain controls, and redirect-to-private-IP rejection.\n - Verified `npm run typecheck`, `npm run lint`, `npm test`, and `npm run build`.\n \n+### Optional Auth Update\n+\n+- Added Story K11 as an incremental behavior-change story after the original K2 security boundary.\n+- Changed `API_KEYS` semantics so empty or unset `API_KEYS` disables service-level authentication in all environments, including production.\n+- Retained `401 UNAUTHORIZED` behavior when one or more API keys are configured.\n+- Updated README, SECURITY, SPEC, kanban, implementation plan, and tests to make the deployment tradeoff explicit.\n+\n ### HTML and Plain Text Extraction Update\n \n - Completed Stories K3 and K4 using a red/green loop.\ndiff --git a/agent-docs/user-stories-kanban.md b/agent-docs/user-stories-kanban.md\nindex 2ca9376..fb8d410 100644\n--- a/agent-docs/user-stories-kanban.md\n+++ b/agent-docs/user-stories-kanban.md\n@@ -55,7 +55,7 @@ As a platform owner, I want authentication and strict URL policy before extracti\n \n Acceptance criteria:\n \n-- production config fails fast when `API_KEYS` is empty\n+- empty `API_KEYS` deliberately disables service-level auth\n - bearer auth is supported\n - development `x-api-key` auth is supported\n - unsupported schemes are rejected\n@@ -67,7 +67,7 @@ Acceptance criteria:\n Checklist:\n \n - [x] Add validated config module\n-- [x] Add auth hook\n+- [x] Add optional auth hook\n - [x] Add URL normalization\n - [x] Add domain matcher\n - [x] Add DNS/IP classifier\n@@ -234,6 +234,26 @@ Checklist:\n - [x] Add `SECURITY.md`\n - [x] Add `SPEC.md`\n \n+### Story K11: Operator Can Disable Service-Level API Key Auth\n+\n+As an operator, I want `API_KEYS` to be optional so I can run the service behind a trusted gateway, private network boundary, or platform IAM layer without requiring a second API key.\n+\n+Acceptance criteria:\n+\n+- empty or unset `API_KEYS` disables service-level authentication in every environment\n+- configured `API_KEYS` still require `Authorization: Bearer <key>` or `x-api-key`\n+- production boot does not fail when `API_KEYS` is empty\n+- docs clearly warn that unauthenticated deployments must sit behind trusted access control\n+- tests cover both configured-auth and disabled-auth behavior\n+\n+Checklist:\n+\n+- [x] Remove production fail-fast for empty `API_KEYS`\n+- [x] Keep auth enforcement when keys are configured\n+- [x] Add unauthenticated production-mode test\n+- [x] Update README, SECURITY, SPEC, and env example\n+- [x] Record the behavior change in agent docs\n+\n ## In Progress\n \n No implementation story is in progress yet.\ndiff --git a/src/config.ts b/src/config.ts\nindex 615c6ac..16fc324 100644\n--- a/src/config.ts\n+++ b/src/config.ts\n@@ -66,10 +66,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {\n   const parsed = envSchema.parse(env);\n   const apiKeys = parseCsv(parsed.API_KEYS);\n \n-  if (parsed.NODE_ENV === \"production\" && apiKeys.length === 0) {\n-    throw new Error(\"API_KEYS must not be empty in production\");\n-  }\n-\n   return {\n     NODE_ENV: parsed.NODE_ENV,\n     PORT: parsed.PORT,\ndiff --git a/test/extractBoundary.test.ts b/test/extractBoundary.test.ts\nindex 071ca7f..1dc270f 100644\n--- a/test/extractBoundary.test.ts\n+++ b/test/extractBoundary.test.ts\n@@ -74,9 +74,34 @@ describe(\"extract boundary\", () => {\n     });\n   });\n \n-  it(\"fails production config when API keys are empty\", () => {\n-    expect(() => loadConfig({ NODE_ENV: \"production\", API_KEYS: \"\" })).toThrow(\n-      \"API_KEYS must not be empty in production\"\n-    );\n+  it(\"allows unauthenticated production mode when API keys are empty\", async () => {\n+    const app = buildApp({\n+      config: loadConfig({ NODE_ENV: \"production\", API_KEYS: \"\" }),\n+      logger: false,\n+      services: {\n+        urlPolicyLookup: () =>\n+          Promise.resolve([{ address: \"93.184.216.34\", family: 4 }]),\n+        fetchUrl: () =>\n+          Promise.resolve({\n+            finalUrl: \"https://example.com/readme.txt\",\n+            contentType: \"text/plain; charset=utf-8\",\n+            contentLength: 25,\n+            body: Buffer.from(\"Plain text document body.\")\n+          })\n+      }\n+    });\n+\n+    const response = await app.inject({\n+      method: \"POST\",\n+      url: \"/v1/extract\",\n+      payload: {\n+        url: \"https://example.com/readme.txt\"\n+      }\n+    });\n+\n+    expect(response.statusCode).toBe(200);\n+    expect(response.json()).toMatchObject({\n+      text: \"Plain text document body.\"\n+    });\n   });\n });\n",
+      "timestamp": "2026-05-03T07:30:53.007Z"
+    },
+    {
+      "kind": "assistant",
+      "role": "assistant",
+      "text": "I noticed I had also edited the old K2 text while adding K11. I’m correcting that so K2 remains the original historical story and K11 carries the new behavior change.",
+      "timestamp": "2026-05-03T07:31:03.179Z"
+    },
+    {
+      "kind": "tool",
+      "role": "tool",
+      "text": "[tool_call] exec_command\n{\"cmd\":\"npm run typecheck\",\"workdir\":\"/Users/ufinity/Documents/GitHub/web-fetch-extract\",\"yield_time_ms\":1000,\"max_output_tokens\":12000}",
+      "timestamp": "2026-05-03T07:31:18.067Z"
+    },
+    {
+      "kind": "tool",
+      "role": "tool",
+      "text": "[tool_call] exec_command\n{\"cmd\":\"npm run lint\",\"workdir\":\"/Users/ufinity/Documents/GitHub/web-fetch-extract\",\"yield_time_ms\":1000,\"max_output_tokens\":12000}",
+      "timestamp": "2026-05-03T07:31:18.072Z"
+    },
+    {
+      "kind": "tool",
+      "role": "tool",
+      "text": "[tool_call] exec_command\n{\"cmd\":\"npm test\",\"workdir\":\"/Users/ufinity/Documents/GitHub/web-fetch-extract\",\"yield_time_ms\":1000,\"max_output_tokens\":20000}",
+      "timestamp": "2026-05-03T07:31:18.087Z"
+    },
+    {
+      "kind": "tool",
+      "role": "tool",
+      "text": "[tool_call] exec_command\n{\"cmd\":\"npm run build\",\"workdir\":\"/Users/ufinity/Documents/GitHub/web-fetch-extract\",\"yield_time_ms\":1000,\"max_output_tokens\":12000}",
+      "timestamp": "2026-05-03T07:31:18.098Z"
+    },
+    {
+      "kind": "tool",
+      "role": "tool",
+      "text": "[tool_result] call_id=call_eMB9hgahEiALtJpJRJrParTV\nChunk ID: add6cc\nWall time: 1.0026 seconds\nProcess running with session ID 98508\nOriginal token count: 18\nOutput:\n\n> web-fetch-extract@0.1.0 typecheck\n> tsc --noEmit -p tsconfig.json\n\n",
+      "timestamp": "2026-05-03T07:31:19.249Z"
+    },
+    {
+      "kind": "tool",
+      "role": "tool",
+      "text": "[tool_result] call_id=call_KLndVsrd8H0h28Mxx5jpdIgs\nChunk ID: 890a4d\nWall time: 1.0015 seconds\nProcess running with session ID 24458\nOriginal token count: 11\nOutput:\n\n> web-fetch-extract@0.1.0 lint\n> eslint .\n\n",
+      "timestamp": "2026-05-03T07:31:19.253Z"
+    },
+    {
+      "kind": "tool",
+      "role": "tool",
+      "text": "[tool_result] call_id=call_AdZNTSKC4UUTh4iEJvsBxlGw\nChunk ID: 3e6938\nWall time: 1.0018 seconds\nProcess running with session ID 83481\nOriginal token count: 28\nOutput:\n\n> web-fetch-extract@0.1.0 test\n> vitest run\n\n\n RUN  v4.1.5 /Users/ufinity/Documents/GitHub/web-fetch-extract\n\n",
+      "timestamp": "2026-05-03T07:31:19.267Z"
+    },
+    {
+      "kind": "tool",
+      "role": "tool",
+      "text": "[tool_result] call_id=call_20W1KE4oVVevJZWNF3VAlzKZ\nChunk ID: cabaf9\nWall time: 1.0054 seconds\nProcess running with session ID 23146\nOriginal token count: 15\nOutput:\n\n> web-fetch-extract@0.1.0 build\n> tsc -p tsconfig.json\n\n",
+      "timestamp": "2026-05-03T07:31:19.269Z"
+    },
+    {
+      "kind": "tool",
+      "role": "tool",
+      "text": "[tool_call] write_stdin\n{\"session_id\":98508,\"chars\":\"\",\"yield_time_ms\":1000,\"max_output_tokens\":12000}",
+      "timestamp": "2026-05-03T07:31:24.936Z"
+    },
+    {
+      "kind": "tool",
+      "role": "tool",
+      "text": "[tool_call] write_stdin\n{\"session_id\":24458,\"chars\":\"\",\"yield_time_ms\":1000,\"max_output_tokens\":12000}",
+      "timestamp": "2026-05-03T07:31:24.940Z"
+    },
+    {
+      "kind": "tool",
+      "role": "tool",
+      "text": "[tool_call] write_stdin\n{\"session_id\":83481,\"chars\":\"\",\"yield_time_ms\":1000,\"max_output_tokens\":20000}",
+      "timestamp": "2026-05-03T07:31:24.948Z"
+    },
+    {
+      "kind": "tool",
+      "role": "tool",
+      "text": "[tool_call] write_stdin\n{\"session_id\":23146,\"chars\":\"\",\"yield_time_ms\":1000,\"max_output_tokens\":12000}",
+      "timestamp": "2026-05-03T07:31:24.952Z"
+    },
+    {
+      "kind": "tool",
+      "role": "tool",
+      "text": "[tool_result] call_id=call_MW8s8lMXRAJoCH9c5vuPAu3g\nChunk ID: 91f778\nWall time: 0.0000 seconds\nProcess exited with code 0\nOriginal token count: 0\nOutput:\n",
+      "timestamp": "2026-05-03T07:31:25.051Z"
+    },
+    {
+      "kind": "tool",
+      "role": "tool",
+      "text": "[tool_result] call_id=call_kQtNZ3fjCKAUBHllBrNRLQQ2\nChunk ID: 00e358\nWall time: 0.0000 seconds\nProcess exited with code 0\nOriginal token count: 0\nOutput:\n",
+      "timestamp": "2026-05-03T07:31:25.052Z"
+    },
+    {
+      "kind": "tool",
+      "role": "tool",
+      "text": "[tool_result] call_id=call_YsHFUeWtfDypfK7cYI762Knk\nChunk ID: 21da86\nWall time: 0.0000 seconds\nProcess exited with code 0\nOriginal token count: 43\nOutput:\n\n Test Files  6 passed (6)\n      Tests  37 passed (37)\n   Start at  15:31:18\n   Duration  3.91s (transform 650ms, setup 0ms, import 7.94s, tests 2.50s, environment 1ms)\n\n",
+      "timestamp": "2026-05-03T07:31:25.052Z"
+    },
+    {
+      "kind": "tool",
+      "role": "tool",
+      "text": "[tool_result] call_id=call_kODmwAMzGBvOF9jxSE6g0dYZ\nChunk ID: ee033e\nWall time: 0.0000 seconds\nProcess exited with code 0\nOriginal token count: 0\nOutput:\n",
+      "timestamp": "2026-05-03T07:31:25.052Z"
+    },
+    {
+      "kind": "assistant",
+      "role": "assistant",
+      "text": "Done. I added it as incremental Story K11 and kept K2 as the original historical story.\n\nBehavior now:\n- Empty/unset `API_KEYS` means no service-level auth required, including production.\n- If `API_KEYS` has values, auth is still required.\n- Docs warn to use empty `API_KEYS` only behind trusted access control.\n\nUpdated:\n- [src/config.ts](/Users/ufinity/Documents/GitHub/web-fetch-extract/src/config.ts)\n- [test/extractBoundary.test.ts](/Users/ufinity/Documents/GitHub/web-fetch-extract/test/extractBoundary.test.ts)\n- [README.md](/Users/ufinity/Documents/GitHub/web-fetch-extract/README.md)\n- [SECURITY.md](/Users/ufinity/Documents/GitHub/web-fetch-extract/SECURITY.md)\n- [SPEC.md](/Users/ufinity/Documents/GitHub/web-fetch-extract/SPEC.md)\n- [agent-docs/user-stories-kanban.md](/Users/ufinity/Documents/GitHub/web-fetch-extract/agent-docs/user-stories-kanban.md)\n\nVerification passed:\n- `npm run typecheck`\n- `npm run lint`\n- `npm test` with 37 tests\n- `npm run build`",
+      "timestamp": "2026-05-03T07:31:32.557Z"
+    },
+    {
+      "kind": "user",
+      "role": "user",
+      "text": "whats th epoint of chiunking?",
+      "timestamp": "2026-05-03T07:31:59.228Z"
+    },
+    {
+      "kind": "assistant",
+      "role": "assistant",
+      "text": "Chunking turns one large extracted document into smaller, bounded pieces.\n\nThe point is mainly for AI/tool usage:\n\n- **Model context limits:** long pages/PDFs may be too large to send as one blob.\n- **Retrieval:** callers can rank/select only the relevant chunks instead of passing the whole document.\n- **Citations:** chunks carry `charStart`, `charEnd`, and for PDFs `pageStart` / `pageEnd`, so downstream answers can cite where text came from.\n- **Cost control:** `maxChunks`, `chunkSizeChars`, and `maxTextChars` cap how much content leaves the service.\n- **Failure containment:** if extraction returns a huge messy page, chunking keeps the response structured and bounded.\n\nExample: a 100-page PDF might extract into 80 chunks. An AI orchestrator can inspect chunk metadata, choose the 3 relevant chunks, and pass only those to the model.",
+      "timestamp": "2026-05-03T07:32:08.851Z"
+    },
+    {
+      "kind": "user",
+      "role": "user",
+      "text": "help me relase v0.1",
+      "timestamp": "2026-05-03T07:32:31.997Z"
+    },
+    {
+      "kind": "assistant",
+      "role": "assistant",
+      "text": "I’ll check the current git state and release workflow setup first, then I’ll prepare a clean `v0.1.0` release path: verify, stage, commit, tag, and push if the repository/remote is ready.",
+      "timestamp": "2026-05-03T07:32:42.352Z"
+    },
+    {
+      "kind": "tool",
+      "role": "tool",
+      "text": "[tool_call] exec_command\n{\"cmd\":\"git status --short --branch\",\"workdir\":\"/Users/ufinity/Documents/GitHub/web-fetch-extract\",\"yield_time_ms\":1000,\"max_output_tokens\":12000}",
+      "timestamp": "2026-05-03T07:32:42.352Z"
+    },
+    {
+      "kind": "tool",
+      "role": "tool",
+      "text": "[tool_call] exec_command\n{\"cmd\":\"git remote -v\",\"workdir\":\"/Users/ufinity/Documents/GitHub/web-fetch-extract\",\"yield_time_ms\":1000,\"max_output_tokens\":12000}",
+      "timestamp": "2026-05-03T07:32:42.356Z"
+    },
+    {
+      "kind": "tool",
+      "role": "tool",
+      "text": "[tool_call] exec_command\n{\"cmd\":\"git tag --list 'v0.1*'\",\"workdir\":\"/Users/ufinity/Documents/GitHub/web-fetch-extract\",\"yield_time_ms\":1000,\"max_output_tokens\":12000}",
+      "timestamp": "2026-05-03T07:32:42.359Z"
+    },
+    {
+      "kind": "tool",
+      "role": "tool",
+      "text": "[tool_call] exec_command\n{\"cmd\":\"cat package.json\",\"workdir\":\"/Users/ufinity/Documents/GitHub/web-fetch-extract\",\"yield_time_ms\":1000,\"max_output_tokens\":12000}",
+      "timestamp": "2026-05-03T07:32:42.373Z"
+    },
+    {
+      "kind": "tool",
+      "role": "tool",
+      "text": "[tool_result] call_id=call_Tc9dYW3ekIiotRPZypy65WB7\nChunk ID: fa553e\nWall time: 0.0000 seconds\nProcess exited with code 0\nOriginal token count: 6\nOutput:\n## main...origin/main\n",
+      "timestamp": "2026-05-03T07:32:42.431Z"
+    },
+    {
+      "kind": "tool",
+      "role": "tool",
+      "text": "[tool_result] call_id=call_gdMISNqtNr5HLpRyLSVBojmQ\nChunk ID: ae903c\nWall time: 0.0000 seconds\nProcess exited with code 0\nOriginal token count: 33\nOutput:\norigin\thttps://github.com/jinnotgin/web-fetch-extract.git (fetch)\norigin\thttps://github.com/jinnotgin/web-fetch-extract.git (push)\n",
+      "timestamp": "2026-05-03T07:32:42.431Z"
+    },
+    {
+      "kind": "tool",
+      "role": "tool",
+      "text": "[tool_result] call_id=call_jEEKMcg4rUL1bHTfoHw1ihCM\nChunk ID: fb6ca3\nWall time: 0.0000 seconds\nProcess exited with code 0\nOriginal token count: 0\nOutput:\n",
+      "timestamp": "2026-05-03T07:32:42.434Z"
+    },
+    {
+      "kind": "tool",
+      "role": "tool",
+      "text": "[tool_result] call_id=call_9jhY0KwZBBzmGAKnOjc0QeQb\nChunk ID: 112329\nWall time: 0.0000 seconds\nProcess exited with code 0\nOriginal token count: 321\nOutput:\n{\n  \"name\": \"web-fetch-extract\",\n  \"version\": \"0.1.0\",\n  \"description\": \"Provider-neutral service for fetching public URLs and extracting readable text.\",\n  \"type\": \"module\",\n  \"private\": true,\n  \"engines\": {\n    \"node\": \">=22\"\n  },\n  \"scripts\": {\n    \"dev\": \"tsx watch src/server.ts\",\n    \"start\": \"node dist/src/server.js\",\n    \"build\": \"tsc -p tsconfig.json\",\n    \"typecheck\": \"tsc --noEmit -p tsconfig.json\",\n    \"lint\": \"eslint .\",\n    \"test\": \"vitest run\",\n    \"test:watch\": \"vitest\",\n    \"docker:build\": \"docker build -t web-fetch-extract:local .\"\n  },\n  \"dependencies\": {\n    \"@mozilla/readability\": \"^0.6.0\",\n    \"@napi-rs/canvas\": \"^0.1.100\",\n    \"cheerio\": \"^1.2.0\",\n    \"dotenv\": \"latest\",\n    \"fastify\": \"latest\",\n    \"jsdom\": \"^29.1.1\",\n    \"pdfjs-dist\": \"^5.7.284\",\n    \"pino\": \"latest\",\n    \"pino-pretty\": \"latest\",\n    \"puppeteer\": \"^24.42.0\",\n    \"tesseract.js\": \"^7.0.0\",\n    \"undici\": \"^8.2.0\",\n    \"zod\": \"latest\"\n  },\n  \"devDependencies\": {\n    \"@eslint/js\": \"latest\",\n    \"@types/jsdom\": \"^28.0.1\",\n    \"@types/node\": \"latest\",\n    \"@typescript-eslint/eslint-plugin\": \"latest\",\n    \"@typescript-eslint/parser\": \"latest\",\n    \"eslint\": \"latest\",\n    \"tsx\": \"latest\",\n    \"typescript\": \"latest\",\n    \"typescript-eslint\": \"latest\",\n    \"vitest\": \"latest\"\n  }\n}\n",
+      "timestamp": "2026-05-03T07:32:42.435Z"
+    },
+    {
+      "kind": "assistant",
+      "role": "assistant",
+      "text": "The working tree is clean on `main`, package version is already `0.1.0`, and no `v0.1*` tags exist locally. I’m going to run the release verification set before tagging.",
+      "timestamp": "2026-05-03T07:32:52.641Z"
+    },
+    {
+      "kind": "tool",
+      "role": "tool",
+      "text": "[tool_call] exec_command\n{\"cmd\":\"npm run typecheck\",\"workdir\":\"/Users/ufinity/Documents/GitHub/web-fetch-extract\",\"yield_time_ms\":1000,\"max_output_tokens\":16000}",
+      "timestamp": "2026-05-03T07:32:52.654Z"
+    },
+    {
+      "kind": "tool",
+      "role": "tool",
+      "text": "[tool_call] exec_command\n{\"cmd\":\"npm run lint\",\"workdir\":\"/Users/ufinity/Documents/GitHub/web-fetch-extract\",\"yield_time_ms\":1000,\"max_output_tokens\":16000}",
+      "timestamp": "2026-05-03T07:32:52.703Z"
+    },
+    {
+      "kind": "tool",
+      "role": "tool",
+      "text": "[tool_call] exec_command\n{\"cmd\":\"npm test\",\"workdir\":\"/Users/ufinity/Documents/GitHub/web-fetch-extract\",\"yield_time_ms\":1000,\"max_output_tokens\":22000}",
+      "timestamp": "2026-05-03T07:32:52.706Z"
+    },
+    {
+      "kind": "tool",
+      "role": "tool",
+      "text": "[tool_call] exec_command\n{\"cmd\":\"npm run build\",\"workdir\":\"/Users/ufinity/Documents/GitHub/web-fetch-extract\",\"yield_time_ms\":1000,\"max_output_tokens\":16000}",
+      "timestamp": "2026-05-03T07:32:52.721Z"
+    },
+    {
+      "kind": "tool",
+      "role": "tool",
+      "text": "[tool_result] call_id=call_pm3Pb7NBrgoSJuzXgCSJ3TdI\nChunk ID: 2e4b1f\nWall time: 1.0016 seconds\nProcess running with session ID 74366\nOriginal token count: 18\nOutput:\n\n> web-fetch-extract@0.1.0 typecheck\n> tsc --noEmit -p tsconfig.json\n\n",
+      "timestamp": "2026-05-03T07:32:53.820Z"
+    },
+    {
+      "kind": "tool",
+      "role": "tool",
+      "text": "[tool_result] call_id=call_Wvhd0yKFQQroBKAb1qL7xQcN\nChunk ID: 18b1b7\nWall time: 1.0011 seconds\nProcess running with session ID 96311\nOriginal token count: 11\nOutput:\n\n> web-fetch-extract@0.1.0 lint\n> eslint .\n\n",
+      "timestamp": "2026-05-03T07:32:53.878Z"
+    },
+    {
+      "kind": "tool",
+      "role": "tool",
+      "text": "[tool_result] call_id=call_Ioe1EQfFAuVgEPxfVheYsbVc\nChunk ID: b71334\nWall time: 1.0017 seconds\nProcess running with session ID 20358\nOriginal token count: 28\nOutput:\n\n> web-fetch-extract@0.1.0 test\n> vitest run\n\n\n RUN  v4.1.5 /Users/ufinity/Documents/GitHub/web-fetch-extract\n\n",
+      "timestamp": "2026-05-03T07:32:53.879Z"
+    },
+    {
+      "kind": "tool",
+      "role": "tool",
+      "text": "[tool_result] call_id=call_pxEdYti0Nwoy902HH2IQG96f\nChunk ID: c39e68\nWall time: 1.0023 seconds\nProcess running with session ID 80314\nOriginal token count: 15\nOutput:\n\n> web-fetch-extract@0.1.0 build\n> tsc -p tsconfig.json\n\n",
+      "timestamp": "2026-05-03T07:32:53.898Z"
+    },
+    {
+      "kind": "tool",
+      "role": "tool",
+      "text": "[tool_call] write_stdin\n{\"session_id\":74366,\"chars\":\"\",\"yield_time_ms\":1000,\"max_output_tokens\":16000}",
+      "timestamp": "2026-05-03T07:32:59.967Z"
+    },
+    {
+      "kind": "tool",
+      "role": "tool",
+      "text": "[tool_call] write_stdin\n{\"session_id\":96311,\"chars\":\"\",\"yield_time_ms\":1000,\"max_output_tokens\":16000}",
+      "timestamp": "2026-05-03T07:32:59.985Z"
+    },
+    {
+      "kind": "tool",
+      "role": "tool",
+      "text": "[tool_call] write_stdin\n{\"session_id\":20358,\"chars\":\"\",\"yield_time_ms\":1000,\"max_output_tokens\":22000}",
+      "timestamp": "2026-05-03T07:33:00.025Z"
+    },
+    {
+      "kind": "tool",
+      "role": "tool",
+      "text": "[tool_call] write_stdin\n{\"session_id\":80314,\"chars\":\"\",\"yield_time_ms\":1000,\"max_output_tokens\":16000}",
+      "timestamp": "2026-05-03T07:33:00.029Z"
+    },
+    {
+      "kind": "tool",
+      "role": "tool",
+      "text": "[tool_result] call_id=call_e8H1eqhi1vQqWcQR4dzQ4Ja5\nChunk ID: a376e9\nWall time: 0.0000 seconds\nProcess exited with code 0\nOriginal token count: 0\nOutput:\n",
+      "timestamp": "2026-05-03T07:33:00.034Z"
+    },
+    {
+      "kind": "tool",
+      "role": "tool",
+      "text": "[tool_result] call_id=call_7NM5akUJlAyFK0x6nYWJA2cx\nChunk ID: 06bd52\nWall time: 0.0000 seconds\nProcess exited with code 0\nOriginal token count: 0\nOutput:\n",
+      "timestamp": "2026-05-03T07:33:00.034Z"
+    },
+    {
+      "kind": "tool",
+      "role": "tool",
+      "text": "[tool_result] call_id=call_NGk9OJQ3YDAFLibZ3jODcoJ1\nChunk ID: 8c382c\nWall time: 0.0000 seconds\nProcess exited with code 0\nOriginal token count: 43\nOutput:\n\n Test Files  6 passed (6)\n      Tests  37 passed (37)\n   Start at  15:32:53\n   Duration  3.55s (transform 443ms, setup 0ms, import 7.75s, tests 1.86s, environment 0ms)\n\n",
+      "timestamp": "2026-05-03T07:33:00.034Z"
+    },
+    {
+      "kind": "tool",
+      "role": "tool",
+      "text": "[tool_result] call_id=call_oHAduimCL6w5Me4m7ZLKcM5n\nChunk ID: 72ce53\nWall time: 0.0000 seconds\nProcess exited with code 0\nOriginal token count: 0\nOutput:\n",
+      "timestamp": "2026-05-03T07:33:00.034Z"
+    },
+    {
+      "kind": "system",
+      "role": "user",
+      "text": "<turn_aborted>\nThe user interrupted the previous turn on purpose. Any running unified exec processes may still be running in the background. If any tools/commands were aborted, they may have partially executed.\n</turn_aborted>",
+      "timestamp": "2026-05-03T07:33:07.042Z"
     }
   ],
   "session_id": "019dec8f-eb27-7950-9d86-6b0bfc5dbe13",

@@ -63,7 +63,10 @@ export const extractRoutes: FastifyPluginCallback<ExtractRoutesOptions> = (
         config: options.config
       },
       {
-        fetchUrl: options.services?.fetchUrl
+        fetchUrl: options.services?.fetchUrl,
+        ocrExtractor: options.services?.ocrExtractor,
+        browserExtractor: options.services?.browserExtractor,
+        urlPolicyLookup: options.services?.urlPolicyLookup
       }
     );
   });

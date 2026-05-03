@@ -1,0 +1,100 @@
+name: Docker Native Images
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-arch:
+    name: Build ${{ matrix.platform }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-24.04
+            suffix: amd64
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
+            suffix: arm64
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve image name
+        id: image
+        run: echo "name=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build native image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: ${{ matrix.platform }}
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.image.outputs.name }}:${{ github.sha }}-${{ matrix.suffix }}
+
+  manifest:
+    name: Publish multi-arch manifest
+    runs-on: ubuntu-24.04
+    needs:
+      - build-arch
+    if: github.event_name != 'pull_request'
+
+    steps:
+      - name: Resolve image name
+        id: image
+        run: echo "name=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish commit manifest
+        run: |
+          docker buildx imagetools create \
+            -t "${{ steps.image.outputs.name }}:${{ github.sha }}" \
+            "${{ steps.image.outputs.name }}:${{ github.sha }}-amd64" \
+            "${{ steps.image.outputs.name }}:${{ github.sha }}-arm64"
+
+      - name: Publish latest manifest
+        if: github.ref == 'refs/heads/main'
+        run: |
+          docker buildx imagetools create \
+            -t "${{ steps.image.outputs.name }}:latest" \
+            "${{ steps.image.outputs.name }}:${{ github.sha }}-amd64" \
+            "${{ steps.image.outputs.name }}:${{ github.sha }}-arm64"
+
+      - name: Publish release manifest
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          docker buildx imagetools create \
+            -t "${{ steps.image.outputs.name }}:${{ github.ref_name }}" \
+            "${{ steps.image.outputs.name }}:${{ github.sha }}-amd64" \
+            "${{ steps.image.outputs.name }}:${{ github.sha }}-arm64"

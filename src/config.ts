@@ -5,7 +5,8 @@ import { z } from "zod";
 export const SERVICE_NAME = "web-fetch-extract";
 export const SERVICE_VERSION = "0.1.0";
 
-const booleanEnv = z
+function booleanEnv(defaultValue: boolean) {
+  return z
   .preprocess((value) => {
     if (value === undefined) {
       return undefined;
@@ -22,7 +23,8 @@ const booleanEnv = z
     return value;
   }, z.enum(["true", "false"]))
   .transform((value) => value === "true")
-  .default(false);
+    .default(defaultValue);
+}
 
 const envSchema = z.object({
   NODE_ENV: z
@@ -33,11 +35,16 @@ const envSchema = z.object({
     .enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"])
     .default("info"),
   API_KEYS: z.string().default(""),
-  ALLOW_HTTP: booleanEnv,
-  ALLOW_PRIVATE_IPS: booleanEnv,
+  ALLOW_HTTP: booleanEnv(false),
+  ALLOW_PRIVATE_IPS: booleanEnv(false),
   MAX_REDIRECTS: z.coerce.number().int().min(0).default(5),
   REQUEST_TIMEOUT_MS: z.coerce.number().int().positive().default(15000),
+  BROWSER_TIMEOUT_MS: z.coerce.number().int().positive().default(25000),
   MAX_PDF_PAGES: z.coerce.number().int().positive().default(30),
+  MAX_OCR_PAGES: z.coerce.number().int().positive().default(5),
+  ENABLE_OCR: booleanEnv(true),
+  ENABLE_BROWSER_FALLBACK: booleanEnv(true),
+  MAX_BROWSER_CONCURRENCY: z.coerce.number().int().positive().default(2),
   ALLOWED_DOMAINS: z.string().default(""),
   BLOCKED_DOMAINS: z.string().default("localhost,127.0.0.1,169.254.169.254")
 });
@@ -71,7 +78,12 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     ALLOW_PRIVATE_IPS: parsed.ALLOW_PRIVATE_IPS,
     MAX_REDIRECTS: parsed.MAX_REDIRECTS,
     REQUEST_TIMEOUT_MS: parsed.REQUEST_TIMEOUT_MS,
+    BROWSER_TIMEOUT_MS: parsed.BROWSER_TIMEOUT_MS,
     MAX_PDF_PAGES: parsed.MAX_PDF_PAGES,
+    MAX_OCR_PAGES: parsed.MAX_OCR_PAGES,
+    ENABLE_OCR: parsed.ENABLE_OCR,
+    ENABLE_BROWSER_FALLBACK: parsed.ENABLE_BROWSER_FALLBACK,
+    MAX_BROWSER_CONCURRENCY: parsed.MAX_BROWSER_CONCURRENCY,
     serviceName: SERVICE_NAME,
     version: SERVICE_VERSION,
     apiKeys,

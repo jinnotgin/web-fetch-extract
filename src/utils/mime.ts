@@ -14,3 +14,7 @@ export function isPlainTextContentType(contentType: string): boolean {
 export function isPdfContentType(contentType: string): boolean {
   return normalizeContentType(contentType) === "application/pdf";
 }
+
+export function isImageContentType(contentType: string): boolean {
+  return normalizeContentType(contentType).startsWith("image/");
+}

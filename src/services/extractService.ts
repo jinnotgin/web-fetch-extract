@@ -3,16 +3,30 @@ import { AppError } from "../errors.js";
 import type { ExtractRequest } from "../types/api.js";
 import {
   isHtmlContentType,
+  isImageContentType,
   isPdfContentType,
   isPlainTextContentType
 } from "../utils/mime.js";
+import {
+  defaultBrowserExtractor,
+  type BrowserExtractor
+} from "./browserExtractor.js";
 import { chunkText } from "./chunker.js";
 import { fetchUrl, type FetchUrl } from "./fetcher.js";
 import { extractHtml } from "./htmlExtractor.js";
+import {
+  defaultOcrExtractor,
+  type OcrExtractor,
+  type OcrExtractionResult
+} from "./ocrExtractor.js";
 import { extractPdf } from "./pdfExtractor.js";
+import type { DnsLookup } from "./urlPolicy.js";
 
 export type ExtractServiceOptions = {
   fetchUrl?: FetchUrl;
+  ocrExtractor?: OcrExtractor;
+  browserExtractor?: BrowserExtractor;
+  urlPolicyLookup?: DnsLookup;
 };
 
 export type ExtractServiceInput = {
@@ -37,7 +51,10 @@ export async function extractUrl(
     fetched.body,
     fetched.finalUrl,
     input.request,
-    input.config
+    input.config,
+    options.ocrExtractor ?? defaultOcrExtractor,
+    options.browserExtractor ?? defaultBrowserExtractor,
+    options.urlPolicyLookup
   );
   warnings.push(...extracted.warnings);
   const limitedText = limitText(extracted.text, input.request.maxTextChars, warnings);
@@ -61,10 +78,12 @@ export async function extractUrl(
     language: extracted.language,
     extraction: {
       method: extracted.method,
-      usedBrowser: false,
-      usedOcr: false,
+      usedBrowser: extracted.usedBrowser,
+      usedOcr: extracted.usedOcr,
       pageCount: extracted.pageCount,
       pagesProcessed: extracted.pagesProcessed,
+      pagesOcred: extracted.pagesOcred,
+      ocrDurationMs: extracted.ocrDurationMs,
       durationMs: Math.round(performance.now() - startedAt)
     },
     limits: {
@@ -84,19 +103,59 @@ async function extractByContentType(
   body: Buffer,
   finalUrl: string,
   request: ExtractRequest,
-  config: AppConfig
+  config: AppConfig,
+  ocrExtractor: OcrExtractor,
+  browserExtractor: BrowserExtractor,
+  urlPolicyLookup?: DnsLookup
 ) {
   if (isHtmlContentType(contentType)) {
     const text = body.toString("utf8");
     const extracted = extractHtml(text, finalUrl);
+
+    if (
+      request.mode === "browser" &&
+      (!config.ENABLE_BROWSER_FALLBACK || !request.useBrowserFallback)
+    ) {
+      throw new AppError(422, "EXTRACTION_FAILED", "Browser fallback is disabled.");
+    }
+
+    if (shouldUseBrowserFallback(request, config, extracted.text)) {
+      const rendered = await browserExtractor({
+        url: finalUrl,
+        request,
+        config,
+        lookup: urlPolicyLookup
+      });
+
+      return {
+        title: rendered.title,
+        description: null,
+        language: null,
+        text: rendered.text,
+        method: "browser",
+        usedBrowser: true,
+        usedOcr: false,
+        pageCount: null,
+        pagesProcessed: null,
+        pagesOcred: 0,
+        ocrDurationMs: null,
+        pageRanges: [],
+        warnings: rendered.warnings
+      };
+    }
+
     return {
       title: extracted.title,
       description: extracted.description,
       language: extracted.language,
       text: extracted.text,
       method: extracted.method,
+      usedBrowser: false,
+      usedOcr: false,
       pageCount: null,
       pagesProcessed: null,
+      pagesOcred: 0,
+      ocrDurationMs: null,
       pageRanges: [],
       warnings: []
     };
@@ -109,8 +168,12 @@ async function extractByContentType(
       language: null,
       text: body.toString("utf8").trim(),
       method: "text",
+      usedBrowser: false,
+      usedOcr: false,
       pageCount: null,
       pagesProcessed: null,
+      pagesOcred: 0,
+      ocrDurationMs: null,
       pageRanges: [],
       warnings: []
     };
@@ -121,22 +184,105 @@ async function extractByContentType(
       maxPages: request.maxPages ?? config.MAX_PDF_PAGES
     });
 
+    if (
+      extracted.text.length === 0 &&
+      config.ENABLE_OCR &&
+      request.useOcrFallback
+    ) {
+      const ocr = await ocrExtractor.extractPdfPages({
+        body,
+        maxPages: Math.min(
+          request.maxPages ?? config.MAX_OCR_PAGES,
+          config.MAX_OCR_PAGES
+        )
+      });
+
+      return {
+        title: extracted.title,
+        description: null,
+        language: null,
+        text: ocr.text,
+        method: "ocr",
+        usedBrowser: false,
+        usedOcr: true,
+        pageCount: extracted.pageCount,
+        pagesProcessed: extracted.pagesProcessed,
+        pagesOcred: ocr.pagesOcred,
+        ocrDurationMs: ocr.durationMs,
+        pageRanges: ocr.pageRanges,
+        warnings: [...extracted.warnings, ...ocr.warnings]
+      };
+    }
+
     return {
       title: extracted.title,
       description: null,
       language: null,
       text: extracted.text,
       method: "pdfjs",
+      usedBrowser: false,
+      usedOcr: false,
       pageCount: extracted.pageCount,
       pagesProcessed: extracted.pagesProcessed,
+      pagesOcred: 0,
+      ocrDurationMs: null,
       pageRanges: extracted.pageRanges,
       warnings: extracted.warnings
     };
   }
 
+  if (isImageContentType(contentType)) {
+    if (!config.ENABLE_OCR || !request.useOcrFallback) {
+      throw new AppError(415, "UNSUPPORTED_CONTENT_TYPE", "OCR is disabled for image content.", {
+        contentType
+      });
+    }
+
+    const ocr = await ocrExtractor.extractImage({
+      body,
+      contentType
+    });
+
+    return fromOcrResult(ocr);
+  }
+
   throw new AppError(415, "UNSUPPORTED_CONTENT_TYPE", "MIME type unsupported.", {
     contentType
   });
+}
+
+function fromOcrResult(ocr: OcrExtractionResult) {
+  return {
+    title: null,
+    description: null,
+    language: null,
+    text: ocr.text,
+    method: "ocr",
+    usedBrowser: false,
+    usedOcr: true,
+    pageCount: null,
+    pagesProcessed: null,
+    pagesOcred: ocr.pagesOcred,
+    ocrDurationMs: ocr.durationMs,
+    pageRanges: ocr.pageRanges,
+    warnings: ocr.warnings
+  };
+}
+
+function shouldUseBrowserFallback(
+  request: ExtractRequest,
+  config: AppConfig,
+  text: string
+) {
+  if (!config.ENABLE_BROWSER_FALLBACK || !request.useBrowserFallback) {
+    return false;
+  }
+
+  if (request.mode === "browser") {
+    return true;
+  }
+
+  return request.mode === "auto" && text.trim().length < 100;
 }
 
 function limitText(text: string, maxTextChars: number, warnings: string[]) {

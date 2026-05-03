@@ -9,7 +9,7 @@
   },
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "start": "node dist/server.js",
+    "start": "node dist/src/server.js",
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "lint": "eslint .",
@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@mozilla/readability": "^0.6.0",
+    "@napi-rs/canvas": "^0.1.100",
     "cheerio": "^1.2.0",
     "dotenv": "latest",
     "fastify": "latest",
@@ -26,6 +27,8 @@
     "pdfjs-dist": "^5.7.284",
     "pino": "latest",
     "pino-pretty": "latest",
+    "puppeteer": "^24.42.0",
+    "tesseract.js": "^7.0.0",
     "undici": "^8.2.0",
     "zod": "latest"
   },

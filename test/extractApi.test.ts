@@ -4,7 +4,9 @@ import { describe, expect, it } from "vitest";
 
 import { buildApp } from "../src/app.js";
 import { loadConfig } from "../src/config.js";
+import type { BrowserExtractor } from "../src/services/browserExtractor.js";
 import type { FetchUrl } from "../src/services/fetcher.js";
+import type { OcrExtractor } from "../src/services/ocrExtractor.js";
 import type { DnsLookup } from "../src/services/urlPolicy.js";
 
 const publicLookup: DnsLookup = () =>
@@ -106,6 +108,203 @@ describe("extract API", () => {
     const payload = response.json<{ chunks: unknown[]; text: string }>();
     expect(payload.text).toContain(sample.expectedText);
     expect(payload.chunks.length).toBeGreaterThan(0);
+  });
+
+  it("uses browser fallback for low-text HTML when enabled", async () => {
+    const html = Buffer.from("<html><head><title>Shell</title></head><body></body></html>");
+    let browserCalled = false;
+    const app = buildTestApp(
+      () =>
+        Promise.resolve({
+          finalUrl: "https://example.com/rendered",
+          contentType: "text/html; charset=utf-8",
+          contentLength: html.length,
+          body: html
+        }),
+      {
+        browserExtractor: () => {
+          browserCalled = true;
+          return Promise.resolve({
+            title: "Rendered Page",
+            text: "Rendered page content produced by JavaScript.",
+            finalUrl: "https://example.com/rendered",
+            warnings: []
+          });
+        }
+      }
+    );
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/extract",
+      headers: {
+        authorization: "Bearer test-key"
+      },
+      payload: {
+        url: "https://example.com/rendered"
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(browserCalled).toBe(true);
+    expect(response.json()).toMatchObject({
+      title: "Rendered Page",
+      extraction: {
+        method: "browser",
+        usedBrowser: true
+      },
+      text: "Rendered page content produced by JavaScript."
+    });
+  });
+
+  it("does not use browser fallback when the request disables it", async () => {
+    const html = Buffer.from("<html><head><title>Shell</title></head><body></body></html>");
+    let browserCalled = false;
+    const app = buildTestApp(
+      () =>
+        Promise.resolve({
+          finalUrl: "https://example.com/rendered",
+          contentType: "text/html; charset=utf-8",
+          contentLength: html.length,
+          body: html
+        }),
+      {
+        browserExtractor: () => {
+          browserCalled = true;
+          return Promise.resolve({
+            title: "Rendered Page",
+            text: "Rendered page content produced by JavaScript.",
+            finalUrl: "https://example.com/rendered",
+            warnings: []
+          });
+        }
+      }
+    );
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/extract",
+      headers: {
+        authorization: "Bearer test-key"
+      },
+      payload: {
+        url: "https://example.com/rendered",
+        useBrowserFallback: false
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(browserCalled).toBe(false);
+    expect(response.json()).toMatchObject({
+      extraction: {
+        usedBrowser: false
+      }
+    });
+  });
+
+  it("rejects forced browser mode when globally disabled", async () => {
+    const html = Buffer.from("<html><head><title>Shell</title></head><body></body></html>");
+    const app = buildTestApp(
+      () =>
+        Promise.resolve({
+          finalUrl: "https://example.com/rendered",
+          contentType: "text/html; charset=utf-8",
+          contentLength: html.length,
+          body: html
+        }),
+      {
+        configEnv: {
+          ENABLE_BROWSER_FALLBACK: "false"
+        }
+      }
+    );
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/extract",
+      headers: {
+        authorization: "Bearer test-key"
+      },
+      payload: {
+        url: "https://example.com/rendered",
+        mode: "browser"
+      }
+    });
+
+    expect(response.statusCode).toBe(422);
+    expect(response.json()).toMatchObject({
+      error: {
+        code: "EXTRACTION_FAILED"
+      }
+    });
+  });
+
+  it("extracts direct image URLs with OCR when enabled", async () => {
+    const ocrExtractor = fakeOcrExtractor({
+      imageText: "Text recognized from a fixture image."
+    });
+    const app = buildTestApp(
+      () =>
+        Promise.resolve({
+          finalUrl: "https://example.com/image.png",
+          contentType: "image/png",
+          contentLength: 7,
+          body: Buffer.from("fakepng")
+        }),
+      { ocrExtractor }
+    );
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/extract",
+      headers: {
+        authorization: "Bearer test-key"
+      },
+      payload: {
+        url: "https://example.com/image.png"
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      extraction: {
+        method: "ocr",
+        usedOcr: true,
+        pagesOcred: 1,
+        ocrDurationMs: 12
+      },
+      text: "Text recognized from a fixture image."
+    });
+  });
+
+  it("rejects direct image OCR when request OCR fallback is disabled", async () => {
+    const app = buildTestApp(() =>
+      Promise.resolve({
+        finalUrl: "https://example.com/image.png",
+        contentType: "image/png",
+        contentLength: 7,
+        body: Buffer.from("fakepng")
+      })
+    );
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/extract",
+      headers: {
+        authorization: "Bearer test-key"
+      },
+      payload: {
+        url: "https://example.com/image.png",
+        useOcrFallback: false
+      }
+    });
+
+    expect(response.statusCode).toBe(415);
+    expect(response.json()).toMatchObject({
+      error: {
+        code: "UNSUPPORTED_CONTENT_TYPE"
+      }
+    });
   });
 
   it("extracts plain text through the API", async () => {
@@ -240,6 +439,59 @@ describe("extract API", () => {
     expect(payload.chunks.length).toBeGreaterThan(0);
   });
 
+  it("OCRs scanned PDFs up to the configured OCR page limit", async () => {
+    const pdf = await readFile("test/fixtures/scanned-empty.pdf");
+    let receivedMaxPages = 0;
+    const ocrExtractor = fakeOcrExtractor({
+      pdfText: "OCR text from scanned page one.",
+      pdfPagesOcred: 1,
+      onPdfInput(input) {
+        receivedMaxPages = input.maxPages;
+      }
+    });
+    const app = buildTestApp(
+      () =>
+        Promise.resolve({
+          finalUrl: "https://example.com/scanned.pdf",
+          contentType: "application/pdf",
+          contentLength: pdf.length,
+          body: pdf
+        }),
+      {
+        configEnv: {
+          MAX_OCR_PAGES: "1"
+        },
+        ocrExtractor
+      }
+    );
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/extract",
+      headers: {
+        authorization: "Bearer test-key"
+      },
+      payload: {
+        url: "https://example.com/scanned.pdf",
+        maxPages: 2
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(receivedMaxPages).toBe(1);
+    expect(response.json()).toMatchObject({
+      extraction: {
+        method: "ocr",
+        usedOcr: true,
+        pageCount: 2,
+        pagesProcessed: 2,
+        pagesOcred: 1,
+        ocrDurationMs: 34
+      },
+      text: "OCR text from scanned page one."
+    });
+  });
+
   it("rejects unsupported content types", async () => {
     const app = buildTestApp(() =>
       Promise.resolve({
@@ -270,13 +522,63 @@ describe("extract API", () => {
   });
 });
 
-function buildTestApp(fetchUrl: FetchUrl) {
+function buildTestApp(
+  fetchUrl: FetchUrl,
+  options: {
+    configEnv?: NodeJS.ProcessEnv;
+    ocrExtractor?: OcrExtractor;
+    browserExtractor?: BrowserExtractor;
+  } = {}
+) {
   return buildApp({
-    config: loadConfig({ NODE_ENV: "test", API_KEYS: "test-key" }),
+    config: loadConfig({
+      NODE_ENV: "test",
+      API_KEYS: "test-key",
+      ...options.configEnv
+    }),
     logger: false,
     services: {
       fetchUrl,
+      ocrExtractor: options.ocrExtractor,
+      browserExtractor: options.browserExtractor,
       urlPolicyLookup: publicLookup
     }
   });
+}
+
+function fakeOcrExtractor(options: {
+  imageText?: string;
+  pdfText?: string;
+  pdfPagesOcred?: number;
+  onPdfInput?: (input: { body: Buffer; maxPages: number }) => void;
+}): OcrExtractor {
+  return {
+    extractImage() {
+      const text = options.imageText ?? "";
+      return Promise.resolve({
+        text,
+        pagesOcred: text.length > 0 ? 1 : 0,
+        durationMs: 12,
+        pageRanges:
+          text.length > 0
+            ? [{ pageNumber: 1, charStart: 0, charEnd: text.length }]
+            : [],
+        warnings: []
+      });
+    },
+    extractPdfPages(input) {
+      options.onPdfInput?.(input);
+      const text = options.pdfText ?? "";
+      return Promise.resolve({
+        text,
+        pagesOcred: options.pdfPagesOcred ?? 0,
+        durationMs: 34,
+        pageRanges:
+          text.length > 0
+            ? [{ pageNumber: 1, charStart: 0, charEnd: text.length }]
+            : [],
+        warnings: []
+      });
+    }
+  };
 }

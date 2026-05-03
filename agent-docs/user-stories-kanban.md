@@ -135,12 +135,6 @@ Checklist:
 - [x] Add PDF fixture
 - [x] Test text-layer PDF extraction
 
-## In Progress
-
-No implementation story is in progress yet.
-
-## Next
-
 ### Story K6: Caller Extracts Scanned PDFs and Images with OCR
 
 As an API caller, I want scanned PDFs and image documents to be OCRed only when enabled so expensive CPU work is explicit and bounded.
@@ -154,13 +148,11 @@ Acceptance criteria:
 
 Checklist:
 
-- [ ] Add OCR extractor
-- [ ] Add scanned PDF render path
-- [ ] Add image content-type branch
-- [ ] Add OCR limits and warnings
-- [ ] Add OCR tests with small fixtures or mocks
-
-## Later
+- [x] Add OCR extractor
+- [x] Add scanned PDF render path
+- [x] Add image content-type branch
+- [x] Add OCR limits and warnings
+- [x] Add OCR tests with small fixtures or mocks
 
 ### Story K7: Caller Extracts a Rendered Web Page with Browser Fallback
 
@@ -177,11 +169,11 @@ Acceptance criteria:
 
 Checklist:
 
-- [ ] Add browser extractor
-- [ ] Add concurrency limiter
-- [ ] Add resource blocking
-- [ ] Add navigation URL policy guard
-- [ ] Add browser fallback tests or integration smoke test
+- [x] Add browser extractor
+- [x] Add concurrency limiter
+- [x] Add resource blocking
+- [x] Add navigation URL policy guard
+- [x] Add browser fallback tests or integration smoke test
 
 ### Story K8: Operator Runs the Service in Docker
 
@@ -198,10 +190,10 @@ Acceptance criteria:
 
 Checklist:
 
-- [ ] Add Dockerfile
-- [ ] Add `.dockerignore`
-- [ ] Verify local Docker build where available
-- [ ] Document Docker run command
+- [x] Add Dockerfile
+- [x] Add `.dockerignore`
+- [x] Verify local Docker build where available
+- [x] Document Docker run command
 
 ### Story K9: Maintainer Gets CI, Native Multi-Arch Images, and Releases
 
@@ -217,10 +209,10 @@ Acceptance criteria:
 
 Checklist:
 
-- [ ] Add `.github/workflows/ci.yml`
-- [ ] Add `.github/workflows/docker-native.yml`
-- [ ] Add `.github/workflows/release.yml`
-- [ ] Check workflow syntax
+- [x] Add `.github/workflows/ci.yml`
+- [x] Add `.github/workflows/docker-native.yml`
+- [x] Add `.github/workflows/release.yml`
+- [x] Check workflow syntax
 
 ### Story K10: Integrator Understands the API and Safety Model
 
@@ -236,8 +228,19 @@ Acceptance criteria:
 
 Checklist:
 
-- [ ] Add `.env.example`
-- [ ] Add `openapi.yaml`
+- [x] Add `.env.example`
+- [x] Add `openapi.yaml`
+- [x] Add `README.md`
+- [x] Add `SECURITY.md`
+- [x] Add `SPEC.md`
+
+## In Progress
+
+No implementation story is in progress yet.
+
+## Next
+
+No implementation stories remain in the current kanban.
 - [ ] Add `README.md`
 - [ ] Add `SECURITY.md`
 - [ ] Add `SPEC.md`

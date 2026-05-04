@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Web Fetch Extract Service
-  version: 0.1.0
+  version: 0.2.0
   description: Fetches public URLs and extracts bounded readable text from HTML, plain text, PDFs, images, and rendered pages.
 servers:
   - url: http://localhost:8080/v1

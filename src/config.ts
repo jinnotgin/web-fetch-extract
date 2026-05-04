@@ -1,9 +1,11 @@
 import "dotenv/config";
 
+import { createRequire } from "node:module";
+
 import { z } from "zod";
 
 export const SERVICE_NAME = "web-fetch-extract";
-export const SERVICE_VERSION = "0.1.0";
+export const SERVICE_VERSION = readPackageVersion();
 
 function booleanEnv(defaultValue: boolean) {
   return z
@@ -45,6 +47,7 @@ const envSchema = z.object({
   ENABLE_OCR: booleanEnv(true),
   ENABLE_BROWSER_FALLBACK: booleanEnv(true),
   MAX_BROWSER_CONCURRENCY: z.coerce.number().int().positive().default(2),
+  CORS_ORIGINS: z.string().default("*"),
   ALLOWED_DOMAINS: z.string().default(""),
   BLOCKED_DOMAINS: z.string().default("localhost,127.0.0.1,169.254.169.254")
 });
@@ -53,11 +56,12 @@ type ParsedEnv = z.infer<typeof envSchema>;
 
 export type AppConfig = Omit<
   ParsedEnv,
-  "API_KEYS" | "ALLOWED_DOMAINS" | "BLOCKED_DOMAINS"
+  "API_KEYS" | "CORS_ORIGINS" | "ALLOWED_DOMAINS" | "BLOCKED_DOMAINS"
 > & {
   serviceName: typeof SERVICE_NAME;
   version: typeof SERVICE_VERSION;
   apiKeys: string[];
+  corsOrigins: string[];
   allowedDomains: string[];
   blockedDomains: string[];
 };
@@ -83,6 +87,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     serviceName: SERVICE_NAME,
     version: SERVICE_VERSION,
     apiKeys,
+    corsOrigins: parseCsv(parsed.CORS_ORIGINS),
     allowedDomains: parseCsv(parsed.ALLOWED_DOMAINS),
     blockedDomains: parseCsv(parsed.BLOCKED_DOMAINS)
   };
@@ -93,4 +98,41 @@ function parseCsv(value: string): string[] {
     .split(",")
     .map((item) => item.trim())
     .filter((item) => item.length > 0);
+}
+
+function readPackageVersion(): string {
+  const require = createRequire(import.meta.url);
+  const packageJson = requirePackageJson(require);
+
+  if (
+    typeof packageJson === "object" &&
+    packageJson !== null &&
+    "version" in packageJson &&
+    typeof packageJson.version === "string"
+  ) {
+    return packageJson.version;
+  }
+
+  throw new Error("package.json version is missing or invalid.");
+}
+
+function requirePackageJson(require: NodeJS.Require): unknown {
+  try {
+    return require("../package.json") as unknown;
+  } catch (error) {
+    if (isModuleNotFound(error)) {
+      return require("../../package.json") as unknown;
+    }
+
+    throw error;
+  }
+}
+
+function isModuleNotFound(error: unknown) {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    error.code === "MODULE_NOT_FOUND"
+  );
 }

@@ -1,0 +1,473 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Web Fetch Extract Tester</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.5;
+      background: Canvas;
+      color: CanvasText;
+    }
+
+    body {
+      margin: 0;
+      padding: 32px;
+    }
+
+    main {
+      max-width: 980px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      margin: 0 0 24px;
+      font-size: 28px;
+      line-height: 1.15;
+    }
+
+    form {
+      display: grid;
+      gap: 18px;
+    }
+
+    fieldset {
+      border: 1px solid color-mix(in srgb, CanvasText 20%, transparent);
+      border-radius: 8px;
+      padding: 18px;
+    }
+
+    legend {
+      padding: 0 8px;
+      font-weight: 700;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .row {
+      display: grid;
+      gap: 6px;
+    }
+
+    .span {
+      grid-column: 1 / -1;
+    }
+
+    label {
+      font-size: 13px;
+      font-weight: 650;
+    }
+
+    input,
+    select,
+    textarea,
+    button {
+      font: inherit;
+    }
+
+    input,
+    select,
+    textarea {
+      width: 100%;
+      box-sizing: border-box;
+      border: 1px solid color-mix(in srgb, CanvasText 22%, transparent);
+      border-radius: 6px;
+      padding: 10px 12px;
+      background: Canvas;
+      color: CanvasText;
+    }
+
+    textarea {
+      min-height: 180px;
+      resize: vertical;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+      font-size: 13px;
+    }
+
+    .checks {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      align-items: center;
+    }
+
+    .check {
+      display: inline-flex;
+      gap: 8px;
+      align-items: center;
+      font-weight: 600;
+    }
+
+    .check input {
+      width: auto;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+
+    button {
+      border: 0;
+      border-radius: 6px;
+      padding: 10px 14px;
+      cursor: pointer;
+      font-weight: 750;
+      background: #1769aa;
+      color: white;
+    }
+
+    button.secondary {
+      background: color-mix(in srgb, CanvasText 12%, Canvas);
+      color: CanvasText;
+    }
+
+    .status {
+      min-height: 24px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+      font-size: 13px;
+    }
+
+    pre {
+      overflow: auto;
+      margin: 0;
+      min-height: 220px;
+      border: 1px solid color-mix(in srgb, CanvasText 18%, transparent);
+      border-radius: 8px;
+      padding: 14px;
+      background: color-mix(in srgb, CanvasText 5%, Canvas);
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    @media (max-width: 720px) {
+      body {
+        padding: 18px;
+      }
+
+      .grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Web Fetch Extract Tester</h1>
+
+    <form id="tester">
+      <fieldset>
+        <legend>Endpoint</legend>
+        <div class="grid">
+          <div class="row">
+            <label for="baseUrl">Base URL</label>
+            <input id="baseUrl" name="baseUrl" value="http://localhost:8080" autocomplete="off">
+          </div>
+          <div class="row">
+            <label for="targetPath">Target path</label>
+            <input id="targetPath" name="targetPath" value="/v1/extract" autocomplete="off">
+          </div>
+          <div class="row">
+            <label for="method">Method</label>
+            <select id="method" name="method">
+              <option value="POST" selected>POST</option>
+              <option value="GET">GET</option>
+            </select>
+          </div>
+          <div class="row">
+            <label for="apiKey">API key</label>
+            <input id="apiKey" name="apiKey" placeholder="optional" autocomplete="off">
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Extract Request</legend>
+        <div class="grid">
+          <div class="row span">
+            <label for="documentUrl">Document URL</label>
+            <input id="documentUrl" name="documentUrl" value="https://www.w3.org/TR/WCAG21/" autocomplete="off">
+          </div>
+          <div class="row">
+            <label for="mode">Mode</label>
+            <select id="mode" name="mode">
+              <option value="auto" selected>auto</option>
+              <option value="html">html</option>
+              <option value="pdf">pdf</option>
+              <option value="text">text</option>
+              <option value="image">image</option>
+              <option value="browser">browser</option>
+            </select>
+          </div>
+          <div class="row">
+            <label for="maxTextChars">Max text chars</label>
+            <input id="maxTextChars" name="maxTextChars" type="number" min="1000" value="12000">
+          </div>
+          <div class="row span checks">
+            <label class="check">
+              <input id="includeRawText" name="includeRawText" type="checkbox" checked>
+              Include raw text
+            </label>
+            <label class="check">
+              <input id="includeChunks" name="includeChunks" type="checkbox" checked>
+              Include chunks
+            </label>
+            <label class="check">
+              <input id="useBrowserFallback" name="useBrowserFallback" type="checkbox" checked>
+              Browser fallback
+            </label>
+            <label class="check">
+              <input id="useOcrFallback" name="useOcrFallback" type="checkbox" checked>
+              OCR fallback
+            </label>
+          </div>
+          <div class="row span">
+            <label for="requestBody">JSON body</label>
+            <textarea id="requestBody" name="requestBody" spellcheck="false"></textarea>
+          </div>
+        </div>
+      </fieldset>
+
+      <div class="actions">
+        <button type="submit">Send Request</button>
+        <button class="secondary" type="button" id="syncBody">Refresh JSON</button>
+        <button class="secondary" type="button" id="copyCurl">Copy curl</button>
+        <button class="secondary" type="button" id="copyResponse">Copy response</button>
+        <button class="secondary" type="button" id="healthPreset">Health Preset</button>
+        <button class="secondary" type="button" id="extractPreset">Extract Preset</button>
+      </div>
+
+      <div class="status" id="status" aria-live="polite"></div>
+      <pre id="curlOutput"></pre>
+      <pre id="output">{}</pre>
+    </form>
+  </main>
+
+  <script>
+    const form = document.querySelector("#tester");
+    const baseUrl = document.querySelector("#baseUrl");
+    const targetPath = document.querySelector("#targetPath");
+    const method = document.querySelector("#method");
+    const apiKey = document.querySelector("#apiKey");
+    const documentUrl = document.querySelector("#documentUrl");
+    const mode = document.querySelector("#mode");
+    const maxTextChars = document.querySelector("#maxTextChars");
+    const includeRawText = document.querySelector("#includeRawText");
+    const includeChunks = document.querySelector("#includeChunks");
+    const useBrowserFallback = document.querySelector("#useBrowserFallback");
+    const useOcrFallback = document.querySelector("#useOcrFallback");
+    const requestBody = document.querySelector("#requestBody");
+    const statusEl = document.querySelector("#status");
+    const output = document.querySelector("#output");
+    const syncBody = document.querySelector("#syncBody");
+    const copyCurl = document.querySelector("#copyCurl");
+    const copyResponse = document.querySelector("#copyResponse");
+    const healthPreset = document.querySelector("#healthPreset");
+    const extractPreset = document.querySelector("#extractPreset");
+    const curlOutput = document.querySelector("#curlOutput");
+
+    function buildExtractBody() {
+      const body = {
+        url: documentUrl.value.trim(),
+        mode: mode.value,
+        includeRawText: includeRawText.checked,
+        includeChunks: includeChunks.checked,
+        useBrowserFallback: useBrowserFallback.checked,
+        useOcrFallback: useOcrFallback.checked
+      };
+
+      const parsedMaxTextChars = Number(maxTextChars.value);
+      if (Number.isInteger(parsedMaxTextChars) && parsedMaxTextChars >= 1000) {
+        body.maxTextChars = parsedMaxTextChars;
+      }
+
+      return body;
+    }
+
+    function refreshJsonBody() {
+      requestBody.value = JSON.stringify(buildExtractBody(), null, 2);
+    }
+
+    function endpointUrl() {
+      const root = baseUrl.value.trim().replace(/\/+$/, "");
+      const path = targetPath.value.trim().replace(/^\/?/, "/");
+      return `${root}${path}`;
+    }
+
+    function shellQuote(value) {
+      return `'${String(value).replaceAll("'", "'\\''")}'`;
+    }
+
+    function buildCurlCommand() {
+      const parts = ["curl", "-sS", shellQuote(endpointUrl())];
+      const key = apiKey.value.trim();
+
+      if (key.length > 0) {
+        parts.push("-H", shellQuote(`Authorization: Bearer ${key}`));
+      }
+
+      if (method.value !== "GET") {
+        parts.push("-H", shellQuote("content-type: application/json"));
+        parts.push("-d", shellQuote(requestBody.value.trim()));
+      }
+
+      if (method.value !== "GET") {
+        parts.splice(1, 0, "-X", method.value);
+      }
+
+      return parts.join(" \\\n  ");
+    }
+
+    function refreshCurlCommand() {
+      curlOutput.textContent = buildCurlCommand();
+    }
+
+    function setStatus(message) {
+      statusEl.textContent = message;
+    }
+
+    function show(value) {
+      if (typeof value === "string") {
+        output.textContent = value;
+        return;
+      }
+
+      output.textContent = JSON.stringify(value, null, 2);
+    }
+
+    async function copyText(value, label) {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(value);
+      } else {
+        const scratch = document.createElement("textarea");
+        scratch.value = value;
+        scratch.style.position = "fixed";
+        scratch.style.left = "-9999px";
+        document.body.appendChild(scratch);
+        scratch.select();
+        document.execCommand("copy");
+        scratch.remove();
+      }
+
+      setStatus(`${label} copied.`);
+    }
+
+    syncBody.addEventListener("click", () => {
+      refreshJsonBody();
+      refreshCurlCommand();
+    });
+
+    copyCurl.addEventListener("click", async () => {
+      refreshCurlCommand();
+      await copyText(curlOutput.textContent, "curl command");
+    });
+
+    copyResponse.addEventListener("click", async () => {
+      await copyText(output.textContent, "Response");
+    });
+
+    healthPreset.addEventListener("click", () => {
+      method.value = "GET";
+      targetPath.value = "/v1/health";
+      requestBody.value = "";
+      refreshCurlCommand();
+    });
+
+    extractPreset.addEventListener("click", () => {
+      method.value = "POST";
+      targetPath.value = "/v1/extract";
+      refreshJsonBody();
+      refreshCurlCommand();
+    });
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+
+      const headers = {};
+      const key = apiKey.value.trim();
+      const selectedMethod = method.value;
+      let body;
+
+      if (key.length > 0) {
+        headers.Authorization = `Bearer ${key}`;
+      }
+
+      if (selectedMethod !== "GET") {
+        headers["content-type"] = "application/json";
+        body = requestBody.value.trim();
+
+        try {
+          JSON.parse(body);
+        } catch (error) {
+          setStatus("Request body is not valid JSON.");
+          show(String(error));
+          return;
+        }
+      }
+
+      const url = endpointUrl();
+      setStatus(`Sending ${selectedMethod} ${url}`);
+      show({});
+
+      try {
+        const startedAt = performance.now();
+        const response = await fetch(url, {
+          method: selectedMethod,
+          headers,
+          body
+        });
+        const elapsedMs = Math.round(performance.now() - startedAt);
+        const text = await response.text();
+        const contentType = response.headers.get("content-type") || "";
+
+        setStatus(`${response.status} ${response.statusText} in ${elapsedMs}ms`);
+
+        if (contentType.includes("application/json")) {
+          show(JSON.parse(text));
+        } else {
+          show(text);
+        }
+      } catch (error) {
+        setStatus("Request failed. If this page is opened from file://, the browser may require CORS on the API.");
+        show(String(error));
+      }
+    });
+
+    for (const element of [baseUrl, targetPath, method, apiKey, requestBody]) {
+      element.addEventListener("change", refreshCurlCommand);
+      element.addEventListener("input", refreshCurlCommand);
+    }
+
+    for (const element of [
+      documentUrl,
+      mode,
+      maxTextChars,
+      includeRawText,
+      includeChunks,
+      useBrowserFallback,
+      useOcrFallback
+    ]) {
+      element.addEventListener("change", () => {
+        refreshJsonBody();
+        refreshCurlCommand();
+      });
+      element.addEventListener("input", () => {
+        refreshJsonBody();
+        refreshCurlCommand();
+      });
+    }
+
+    refreshJsonBody();
+    refreshCurlCommand();
+  </script>
+</body>
+</html>

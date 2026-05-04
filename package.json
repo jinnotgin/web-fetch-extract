@@ -1,6 +1,6 @@
 {
   "name": "web-fetch-extract",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Provider-neutral service for fetching public URLs and extracting readable text.",
   "type": "module",
   "private": true,

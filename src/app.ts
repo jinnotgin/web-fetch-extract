@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 
-import Fastify from "fastify";
+import Fastify, { type FastifyReply } from "fastify";
 
 import { loadConfig, type AppConfig } from "./config.js";
 import { AppError } from "./errors.js";
@@ -26,6 +26,17 @@ export function buildApp(options: BuildAppOptions = {}) {
       return isSafeRequestId(value) ? value : crypto.randomUUID();
     },
     logger: options.logger ?? config.NODE_ENV !== "test"
+  });
+
+  app.addHook("onRequest", (request, reply, done) => {
+    applyCorsHeaders(request.headers.origin, config, reply);
+
+    if (request.method === "OPTIONS") {
+      void reply.status(204).send();
+      return;
+    }
+
+    done();
   });
 
   app.setErrorHandler((error, request, reply) => {
@@ -63,6 +74,30 @@ export function buildApp(options: BuildAppOptions = {}) {
   });
 
   return app;
+}
+
+function applyCorsHeaders(
+  origin: string | undefined,
+  config: Pick<AppConfig, "corsOrigins">,
+  reply: FastifyReply
+) {
+  const allowAll = config.corsOrigins.includes("*");
+  const allowedOrigin = allowAll ? "*" : origin;
+
+  if (allowAll || (origin !== undefined && config.corsOrigins.includes(origin))) {
+    reply.header("access-control-allow-origin", allowedOrigin);
+  }
+
+  if (!allowAll) {
+    reply.header("vary", "Origin");
+  }
+
+  reply.header("access-control-allow-methods", "GET,POST,OPTIONS");
+  reply.header(
+    "access-control-allow-headers",
+    "authorization,content-type,x-api-key,x-request-id"
+  );
+  reply.header("access-control-max-age", "86400");
 }
 
 function isSafeRequestId(value: string | undefined): value is string {

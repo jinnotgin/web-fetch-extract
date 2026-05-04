@@ -26,6 +26,13 @@ Health:
 curl http://localhost:8080/v1/health
 ```
 
+Browser clients are allowed from any origin by default. Set `CORS_ORIGINS` to
+a comma-separated list of exact origins to restrict browser access:
+
+```bash
+CORS_ORIGINS=http://localhost:5173,https://app.example.com npm run dev
+```
+
 ## Extract
 
 ```bash
@@ -69,23 +76,23 @@ curl http://localhost:8080/v1/health
 
 ## Releases
 
-Release builds are tied to Git tags named like `v0.1.0`.
+Release builds are tied to Git tags named like `v0.2`.
 
 ```bash
-git tag v0.1.0
-git push origin v0.1.0
+git tag v0.2
+git push origin v0.2
 ```
 
 To rerun the GitHub Actions build for a specific existing version tag:
 
 ```bash
-gh workflow run docker-native.yml -f version=0.1.0
+gh workflow run docker-native.yml -f version=0.2
 ```
 
 To create or rerun the GitHub Release workflow for a specific existing version tag:
 
 ```bash
-gh workflow run release.yml -f version=0.1.0
+gh workflow run release.yml -f version=0.2
 ```
 
 ## Configuration
@@ -103,6 +110,7 @@ Key controls:
 - `ENABLE_OCR`
 - `ENABLE_BROWSER_FALLBACK`
 - `MAX_BROWSER_CONCURRENCY`
+- `CORS_ORIGINS`
 
 ## API Docs
 

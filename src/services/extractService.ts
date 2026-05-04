@@ -89,6 +89,10 @@ export async function extractUrl(
     limits: {
       truncated: warnings.includes("Text was truncated to maxTextChars."),
       maxBytes: input.request.maxBytes ?? null,
+      maxPages: effectiveMaxPages(
+        input.request.maxPages,
+        pageEnvironmentLimit(input.config, extracted.method, extracted.pageCount)
+      ) ?? null,
       maxTextChars: input.request.maxTextChars,
       maxChunks: input.request.maxChunks
     },
@@ -180,8 +184,9 @@ async function extractByContentType(
   }
 
   if (isPdfContentType(contentType)) {
+    const pdfMaxPages = effectiveMaxPages(request.maxPages, config.MAX_PDF_PAGES);
     const extracted = await extractPdf(body, {
-      maxPages: request.maxPages ?? config.MAX_PDF_PAGES
+      maxPages: pdfMaxPages
     });
 
     if (
@@ -189,12 +194,10 @@ async function extractByContentType(
       config.ENABLE_OCR &&
       request.useOcrFallback
     ) {
+      const ocrMaxPages = effectiveMaxPages(request.maxPages, config.MAX_OCR_PAGES);
       const ocr = await ocrExtractor.extractPdfPages({
         body,
-        maxPages: Math.min(
-          request.maxPages ?? config.MAX_OCR_PAGES,
-          config.MAX_OCR_PAGES
-        )
+        maxPages: ocrMaxPages
       });
 
       return {
@@ -249,6 +252,33 @@ async function extractByContentType(
   throw new AppError(415, "UNSUPPORTED_CONTENT_TYPE", "MIME type unsupported.", {
     contentType
   });
+}
+
+function effectiveMaxPages(
+  requestMaxPages: number | undefined,
+  environmentMaxPages: number | undefined
+) {
+  if (requestMaxPages === undefined) {
+    return environmentMaxPages;
+  }
+
+  if (environmentMaxPages === undefined) {
+    return requestMaxPages;
+  }
+
+  return Math.min(requestMaxPages, environmentMaxPages);
+}
+
+function pageEnvironmentLimit(
+  config: AppConfig,
+  method: string,
+  pageCount: number | null
+) {
+  if (pageCount === null) {
+    return undefined;
+  }
+
+  return method === "ocr" ? config.MAX_OCR_PAGES : config.MAX_PDF_PAGES;
 }
 
 function fromOcrResult(ocr: OcrExtractionResult) {

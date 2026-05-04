@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Web Fetch Extract Service
-  version: 0.2.0
+  version: 0.2.1
   description: Fetches public URLs and extracts bounded readable text from HTML, plain text, PDFs, images, and rendered pages.
 servers:
   - url: http://localhost:8080/v1
@@ -119,6 +119,7 @@ components:
         maxPages:
           type: integer
           minimum: 1
+          description: Optional per-request page cap. There is no API default. If server MAX_PDF_PAGES or MAX_OCR_PAGES caps are configured, the effective cap cannot exceed those env limits.
         maxTextChars:
           type: integer
           minimum: 1000
@@ -229,6 +230,8 @@ components:
         truncated:
           type: boolean
         maxBytes:
+          type: [integer, "null"]
+        maxPages:
           type: [integer, "null"]
         maxTextChars:
           type: integer

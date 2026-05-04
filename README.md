@@ -41,13 +41,12 @@ curl -sS http://localhost:8080/v1/extract \
   -H 'content-type: application/json' \
   -d '{
     "url": "https://www.w3.org/TR/WCAG21/",
-    "maxPages": 10,
     "includeRawText": true,
     "includeChunks": true
   }'
 ```
 
-PDF and OCR page processing is bounded by `maxPages`, defaulting to `MAX_PDF_PAGES` for text-layer PDFs and capped by `MAX_OCR_PAGES` for OCR fallback. Response content is bounded by `maxTextChars`, `chunkSizeChars`, `chunkOverlapChars`, and `maxChunks`.
+PDF and OCR page processing has no API default page cap. Set request `maxPages` to limit a single extraction. Set `MAX_PDF_PAGES` or `MAX_OCR_PAGES` to enforce server-side caps; when both request and env caps are present, the smaller value wins. Production deployments should set page caps, especially `MAX_OCR_PAGES`, because uncapped OCR can consume significant CPU and memory. Response content is bounded by `maxTextChars`, `chunkSizeChars`, `chunkOverlapChars`, and `maxChunks`.
 
 ## Safety Model
 

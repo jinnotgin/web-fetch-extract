@@ -389,6 +389,88 @@ describe("extract API", () => {
     expect(payload.text).not.toContain("Second PDF page");
   });
 
+  it("processes all PDF pages when maxPages and env caps are unset", async () => {
+    const pdf = await readFile("test/fixtures/sample.pdf");
+    const app = buildTestApp(() =>
+      Promise.resolve({
+        finalUrl: "https://example.com/sample.pdf",
+        contentType: "application/pdf",
+        contentLength: pdf.length,
+        body: pdf
+      })
+    );
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/extract",
+      headers: {
+        authorization: "Bearer test-key"
+      },
+      payload: {
+        url: "https://example.com/sample.pdf"
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      extraction: {
+        method: "pdfjs",
+        pageCount: 2,
+        pagesProcessed: 2
+      },
+      limits: {
+        maxPages: null
+      },
+      warnings: []
+    });
+    const payload = response.json<{ text: string }>();
+    expect(payload.text).toContain("First PDF page has embedded readable text");
+    expect(payload.text).toContain("Second PDF page");
+  });
+
+  it("does not let request maxPages exceed the PDF env cap", async () => {
+    const pdf = await readFile("test/fixtures/sample.pdf");
+    const app = buildTestApp(
+      () =>
+        Promise.resolve({
+          finalUrl: "https://example.com/sample.pdf",
+          contentType: "application/pdf",
+          contentLength: pdf.length,
+          body: pdf
+        }),
+      {
+        configEnv: {
+          MAX_PDF_PAGES: "1"
+        }
+      }
+    );
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/extract",
+      headers: {
+        authorization: "Bearer test-key"
+      },
+      payload: {
+        url: "https://example.com/sample.pdf",
+        maxPages: 2
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      extraction: {
+        method: "pdfjs",
+        pageCount: 2,
+        pagesProcessed: 1
+      },
+      limits: {
+        maxPages: 1
+      },
+      warnings: ["PDF processing stopped at maxPages."]
+    });
+  });
+
   it.each([
     {
       fixture: "test/fixtures/web-pdf/w3c-dummy.pdf",
@@ -441,7 +523,7 @@ describe("extract API", () => {
 
   it("OCRs scanned PDFs up to the configured OCR page limit", async () => {
     const pdf = await readFile("test/fixtures/scanned-empty.pdf");
-    let receivedMaxPages = 0;
+    let receivedMaxPages: number | undefined;
     const ocrExtractor = fakeOcrExtractor({
       pdfText: "OCR text from scanned page one.",
       pdfPagesOcred: 1,
@@ -550,7 +632,7 @@ function fakeOcrExtractor(options: {
   imageText?: string;
   pdfText?: string;
   pdfPagesOcred?: number;
-  onPdfInput?: (input: { body: Buffer; maxPages: number }) => void;
+  onPdfInput?: (input: { body: Buffer; maxPages?: number }) => void;
 }): OcrExtractor {
   return {
     extractImage() {

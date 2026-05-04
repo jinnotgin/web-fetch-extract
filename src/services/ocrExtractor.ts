@@ -11,7 +11,7 @@ export type OcrImageInput = {
 
 export type OcrPdfInput = {
   body: Buffer;
-  maxPages: number;
+  maxPages?: number;
 };
 
 export type OcrExtractionResult = {
@@ -51,7 +51,8 @@ export const defaultOcrExtractor: OcrExtractor = {
       disableFontFace: true,
       useSystemFonts: true
     }).promise;
-    const pagesToOcr = Math.min(document.numPages, input.maxPages);
+    const pagesToOcr =
+      input.maxPages === undefined ? document.numPages : Math.min(document.numPages, input.maxPages);
     const pageTexts: string[] = [];
     const pageRanges: PageRange[] = [];
     let cursor = 0;

@@ -28,6 +28,14 @@ function booleanEnv(defaultValue: boolean) {
     .default(defaultValue);
 }
 
+const optionalPositiveIntEnv = z.preprocess((value) => {
+  if (value === undefined || value === "") {
+    return undefined;
+  }
+
+  return value;
+}, z.coerce.number().int().positive().optional());
+
 const envSchema = z.object({
   NODE_ENV: z
     .enum(["development", "test", "production"])
@@ -42,8 +50,8 @@ const envSchema = z.object({
   MAX_REDIRECTS: z.coerce.number().int().min(0).default(5),
   REQUEST_TIMEOUT_MS: z.coerce.number().int().positive().default(15000),
   BROWSER_TIMEOUT_MS: z.coerce.number().int().positive().default(25000),
-  MAX_PDF_PAGES: z.coerce.number().int().positive().default(30),
-  MAX_OCR_PAGES: z.coerce.number().int().positive().default(5),
+  MAX_PDF_PAGES: optionalPositiveIntEnv,
+  MAX_OCR_PAGES: optionalPositiveIntEnv,
   ENABLE_OCR: booleanEnv(true),
   ENABLE_BROWSER_FALLBACK: booleanEnv(true),
   MAX_BROWSER_CONCURRENCY: z.coerce.number().int().positive().default(2),

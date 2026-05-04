@@ -13,7 +13,7 @@ export type PdfExtractionResult = {
 
 export async function extractPdf(
   body: Buffer,
-  options: { maxPages: number }
+  options: { maxPages?: number }
 ): Promise<PdfExtractionResult> {
   const document = await getDocument({
     data: new Uint8Array(body),
@@ -32,7 +32,8 @@ export async function extractPdf(
       : null;
 
   const pageCount = document.numPages;
-  const pagesProcessed = Math.min(pageCount, options.maxPages);
+  const pagesProcessed =
+    options.maxPages === undefined ? pageCount : Math.min(pageCount, options.maxPages);
   const pageRanges: PageRange[] = [];
   const pageTexts: string[] = [];
   let cursor = 0;

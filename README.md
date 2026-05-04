@@ -41,12 +41,13 @@ curl -sS http://localhost:8080/v1/extract \
   -H 'content-type: application/json' \
   -d '{
     "url": "https://www.w3.org/TR/WCAG21/",
+    "maxPages": 10,
     "includeRawText": true,
     "includeChunks": true
   }'
 ```
 
-Response content is bounded by `maxTextChars`, `chunkSizeChars`, `chunkOverlapChars`, and `maxChunks`.
+PDF and OCR page processing is bounded by `maxPages`, defaulting to `MAX_PDF_PAGES` for text-layer PDFs and capped by `MAX_OCR_PAGES` for OCR fallback. Response content is bounded by `maxTextChars`, `chunkSizeChars`, `chunkOverlapChars`, and `maxChunks`.
 
 ## Safety Model
 

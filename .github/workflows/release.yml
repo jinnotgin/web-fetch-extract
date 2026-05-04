@@ -1,6 +1,12 @@
 name: Release
 
 on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version to publish, for example 0.1.0 or v0.1.0"
+        required: true
+        type: string
   push:
     tags:
       - "v*"
@@ -14,10 +20,33 @@ jobs:
     runs-on: ubuntu-24.04
 
     steps:
+      - name: Resolve release version
+        id: release
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            VERSION="${{ inputs.version }}"
+            VERSION="${VERSION#refs/tags/}"
+            if [[ "${VERSION}" != v* ]]; then
+              VERSION="v${VERSION}"
+            fi
+
+            if [[ ! "${VERSION}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z.-]+)?$ ]]; then
+              echo "Version must look like 0.1.0, v0.1.0, or a SemVer prerelease/build tag." >&2
+              exit 1
+            fi
+
+            echo "tag=${VERSION}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.release.outputs.tag }}
 
       - name: Create release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release create "$GITHUB_REF_NAME" --generate-notes --title "$GITHUB_REF_NAME"
+        run: gh release create "${{ steps.release.outputs.tag }}" --generate-notes --title "${{ steps.release.outputs.tag }}"

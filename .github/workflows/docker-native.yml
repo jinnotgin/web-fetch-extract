@@ -1,6 +1,12 @@
 name: Docker Native Images
 
 on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version to build, for example 0.1.0 or v0.1.0"
+        required: true
+        type: string
   pull_request:
   push:
     branches:
@@ -28,8 +34,36 @@ jobs:
             suffix: arm64
 
     steps:
+      - name: Resolve build target
+        id: target
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            VERSION="${{ inputs.version }}"
+            VERSION="${VERSION#refs/tags/}"
+            if [[ "${VERSION}" != v* ]]; then
+              VERSION="v${VERSION}"
+            fi
+
+            if [[ ! "${VERSION}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z.-]+)?$ ]]; then
+              echo "Version must look like 0.1.0, v0.1.0, or a SemVer prerelease/build tag." >&2
+              exit 1
+            fi
+
+            echo "ref=${VERSION}" >> "$GITHUB_OUTPUT"
+            echo "arch_tag=${VERSION}" >> "$GITHUB_OUTPUT"
+          elif [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            echo "ref=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+            echo "arch_tag=${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=" >> "$GITHUB_OUTPUT"
+            echo "arch_tag=${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.target.outputs.ref }}
 
       - name: Resolve image name
         id: image
@@ -52,7 +86,7 @@ jobs:
           context: .
           platforms: ${{ matrix.platform }}
           push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.image.outputs.name }}:${{ github.sha }}-${{ matrix.suffix }}
+          tags: ${{ steps.image.outputs.name }}:${{ steps.target.outputs.arch_tag }}-${{ matrix.suffix }}
 
   manifest:
     name: Publish multi-arch manifest
@@ -62,6 +96,35 @@ jobs:
     if: github.event_name != 'pull_request'
 
     steps:
+      - name: Resolve build target
+        id: target
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            VERSION="${{ inputs.version }}"
+            VERSION="${VERSION#refs/tags/}"
+            if [[ "${VERSION}" != v* ]]; then
+              VERSION="v${VERSION}"
+            fi
+
+            if [[ ! "${VERSION}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z.-]+)?$ ]]; then
+              echo "Version must look like 0.1.0, v0.1.0, or a SemVer prerelease/build tag." >&2
+              exit 1
+            fi
+
+            echo "arch_tag=${VERSION}" >> "$GITHUB_OUTPUT"
+            echo "primary_tag=${VERSION}" >> "$GITHUB_OUTPUT"
+            echo "release_tag=" >> "$GITHUB_OUTPUT"
+          elif [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            echo "arch_tag=${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+            echo "primary_tag=${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+            echo "release_tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          else
+            echo "arch_tag=${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+            echo "primary_tag=${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+            echo "release_tag=" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Resolve image name
         id: image
         run: echo "name=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
@@ -76,25 +139,25 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Publish commit manifest
+      - name: Publish primary manifest
         run: |
           docker buildx imagetools create \
-            -t "${{ steps.image.outputs.name }}:${{ github.sha }}" \
-            "${{ steps.image.outputs.name }}:${{ github.sha }}-amd64" \
-            "${{ steps.image.outputs.name }}:${{ github.sha }}-arm64"
+            -t "${{ steps.image.outputs.name }}:${{ steps.target.outputs.primary_tag }}" \
+            "${{ steps.image.outputs.name }}:${{ steps.target.outputs.arch_tag }}-amd64" \
+            "${{ steps.image.outputs.name }}:${{ steps.target.outputs.arch_tag }}-arm64"
 
       - name: Publish latest manifest
         if: github.ref == 'refs/heads/main'
         run: |
           docker buildx imagetools create \
             -t "${{ steps.image.outputs.name }}:latest" \
-            "${{ steps.image.outputs.name }}:${{ github.sha }}-amd64" \
-            "${{ steps.image.outputs.name }}:${{ github.sha }}-arm64"
+            "${{ steps.image.outputs.name }}:${{ steps.target.outputs.arch_tag }}-amd64" \
+            "${{ steps.image.outputs.name }}:${{ steps.target.outputs.arch_tag }}-arm64"
 
       - name: Publish release manifest
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: steps.target.outputs.release_tag != ''
         run: |
           docker buildx imagetools create \
-            -t "${{ steps.image.outputs.name }}:${{ github.ref_name }}" \
-            "${{ steps.image.outputs.name }}:${{ github.sha }}-amd64" \
-            "${{ steps.image.outputs.name }}:${{ github.sha }}-arm64"
+            -t "${{ steps.image.outputs.name }}:${{ steps.target.outputs.release_tag }}" \
+            "${{ steps.image.outputs.name }}:${{ steps.target.outputs.arch_tag }}-amd64" \
+            "${{ steps.image.outputs.name }}:${{ steps.target.outputs.arch_tag }}-arm64"

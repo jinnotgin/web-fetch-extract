@@ -67,6 +67,27 @@ Health check:
 curl http://localhost:8080/v1/health
 ```
 
+## Releases
+
+Release builds are tied to Git tags named like `v0.1.0`.
+
+```bash
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+To rerun the GitHub Actions build for a specific existing version tag:
+
+```bash
+gh workflow run docker-native.yml -f version=0.1.0
+```
+
+To create or rerun the GitHub Release workflow for a specific existing version tag:
+
+```bash
+gh workflow run release.yml -f version=0.1.0
+```
+
 ## Configuration
 
 Copy `.env.example` and set `API_KEYS` when the service should enforce its own API key auth. Leave `API_KEYS` empty only when another trusted layer handles access control.

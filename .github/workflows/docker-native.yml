@@ -45,8 +45,8 @@ jobs:
               VERSION="v${VERSION}"
             fi
 
-            if [[ ! "${VERSION}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z.-]+)?$ ]]; then
-              echo "Version must look like 0.1.0, v0.1.0, or a SemVer prerelease/build tag." >&2
+            if [[ ! "${VERSION}" =~ ^v[0-9][0-9A-Za-z._-]*$ ]]; then
+              echo "Version must look like 0.1, 0.1.0, v0.1, or v0.1.0." >&2
               exit 1
             fi
 
@@ -107,8 +107,8 @@ jobs:
               VERSION="v${VERSION}"
             fi
 
-            if [[ ! "${VERSION}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z.-]+)?$ ]]; then
-              echo "Version must look like 0.1.0, v0.1.0, or a SemVer prerelease/build tag." >&2
+            if [[ ! "${VERSION}" =~ ^v[0-9][0-9A-Za-z._-]*$ ]]; then
+              echo "Version must look like 0.1, 0.1.0, v0.1, or v0.1.0." >&2
               exit 1
             fi
 

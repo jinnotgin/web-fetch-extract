@@ -212,6 +212,10 @@
             <label for="maxTextChars">Max text chars</label>
             <input id="maxTextChars" name="maxTextChars" type="number" min="1000" value="12000">
           </div>
+          <div class="row">
+            <label for="maxPages">Max pages</label>
+            <input id="maxPages" name="maxPages" type="number" min="1" value="10">
+          </div>
           <div class="row span checks">
             <label class="check">
               <input id="includeRawText" name="includeRawText" type="checkbox" checked>
@@ -261,6 +265,7 @@
     const documentUrl = document.querySelector("#documentUrl");
     const mode = document.querySelector("#mode");
     const maxTextChars = document.querySelector("#maxTextChars");
+    const maxPages = document.querySelector("#maxPages");
     const includeRawText = document.querySelector("#includeRawText");
     const includeChunks = document.querySelector("#includeChunks");
     const useBrowserFallback = document.querySelector("#useBrowserFallback");
@@ -288,6 +293,11 @@
       const parsedMaxTextChars = Number(maxTextChars.value);
       if (Number.isInteger(parsedMaxTextChars) && parsedMaxTextChars >= 1000) {
         body.maxTextChars = parsedMaxTextChars;
+      }
+
+      const parsedMaxPages = Number(maxPages.value);
+      if (Number.isInteger(parsedMaxPages) && parsedMaxPages > 0) {
+        body.maxPages = parsedMaxPages;
       }
 
       return body;
@@ -451,6 +461,7 @@
       documentUrl,
       mode,
       maxTextChars,
+      maxPages,
       includeRawText,
       includeChunks,
       useBrowserFallback,

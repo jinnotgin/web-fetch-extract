@@ -80,13 +80,22 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Log in to Docker Hub
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v4
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
       - name: Build native image
         uses: docker/build-push-action@v7
         with:
           context: .
           platforms: ${{ matrix.platform }}
           push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.image.outputs.name }}:${{ steps.target.outputs.arch_tag }}-${{ matrix.suffix }}
+          tags: |
+            ${{ steps.image.outputs.name }}:${{ steps.target.outputs.arch_tag }}-${{ matrix.suffix }}
+            jinnotgin/web-fetch-extract:${{ steps.target.outputs.arch_tag }}-${{ matrix.suffix }}
 
   manifest:
     name: Publish multi-arch manifest
@@ -139,12 +148,25 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v4
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
       - name: Publish primary manifest
         run: |
           docker buildx imagetools create \
             -t "${{ steps.image.outputs.name }}:${{ steps.target.outputs.primary_tag }}" \
             "${{ steps.image.outputs.name }}:${{ steps.target.outputs.arch_tag }}-amd64" \
             "${{ steps.image.outputs.name }}:${{ steps.target.outputs.arch_tag }}-arm64"
+
+      - name: Publish primary manifest to Docker Hub
+        run: |
+          docker buildx imagetools create \
+            -t "jinnotgin/web-fetch-extract:${{ steps.target.outputs.primary_tag }}" \
+            "jinnotgin/web-fetch-extract:${{ steps.target.outputs.arch_tag }}-amd64" \
+            "jinnotgin/web-fetch-extract:${{ steps.target.outputs.arch_tag }}-arm64"
 
       - name: Publish latest manifest
         if: github.ref == 'refs/heads/main'
@@ -154,6 +176,14 @@ jobs:
             "${{ steps.image.outputs.name }}:${{ steps.target.outputs.arch_tag }}-amd64" \
             "${{ steps.image.outputs.name }}:${{ steps.target.outputs.arch_tag }}-arm64"
 
+      - name: Publish latest manifest to Docker Hub
+        if: github.ref == 'refs/heads/main'
+        run: |
+          docker buildx imagetools create \
+            -t "jinnotgin/web-fetch-extract:latest" \
+            "jinnotgin/web-fetch-extract:${{ steps.target.outputs.arch_tag }}-amd64" \
+            "jinnotgin/web-fetch-extract:${{ steps.target.outputs.arch_tag }}-arm64"
+
       - name: Publish release manifest
         if: steps.target.outputs.release_tag != ''
         run: |
@@ -161,3 +191,11 @@ jobs:
             -t "${{ steps.image.outputs.name }}:${{ steps.target.outputs.release_tag }}" \
             "${{ steps.image.outputs.name }}:${{ steps.target.outputs.arch_tag }}-amd64" \
             "${{ steps.image.outputs.name }}:${{ steps.target.outputs.arch_tag }}-arm64"
+
+      - name: Publish release manifest to Docker Hub
+        if: steps.target.outputs.release_tag != ''
+        run: |
+          docker buildx imagetools create \
+            -t "jinnotgin/web-fetch-extract:${{ steps.target.outputs.release_tag }}" \
+            "jinnotgin/web-fetch-extract:${{ steps.target.outputs.arch_tag }}-amd64" \
+            "jinnotgin/web-fetch-extract:${{ steps.target.outputs.arch_tag }}-arm64"
